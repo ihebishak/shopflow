@@ -55,9 +55,9 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 
 ## Phase 1 — Socle technique
 - ✅ 1.1 Monorepo + projet Maven multi-modules + Maven Wrapper
-- ✅ 1.2 Module `common` : événements Kafka partagés *(provisoire, remplacé par `contracts` en 1.4)*
+- ✅ 1.2 Module `common` : événements Kafka partagés *(provisoire, supprimé en 1.4)*
 - ✅ 1.3 `docker-compose` infra : Kafka (KRaft), MongoDB, Kafka UI, Mongo Express
-- ⬜ 1.4 Module `contracts` : schémas Avro (`.avsc`) + génération des classes, objet `Money` ; Schema Registry dans le compose (compatibilité FULL), branché sur Kafka UI
+- ✅ 1.4 Module `contracts` (Avro IDL, génération des classes, `TopicRecordNameStrategy`, schémas du topic produit + test aller-retour) ; module `shared-kernel` (`Money` métier) ; Schema Registry Confluent dans le compose (compatibilité FULL), branché sur Kafka UI
 - ⬜ 1.5 Enveloppe CloudEvents (headers Kafka) + MongoDB en replica set (prérequis de l'outbox)
 - ⬜ 1.6 Starter interne `shopflow-starter` : config Kafka/Avro, CloudEvents, **outbox**, consommateurs idempotents, retry/DLT, erreurs Problem Details (RFC 9457), règles ArchUnit de l'architecture hexagonale
 - ⬜ 1.7 Ajout de Redis, Keycloak et Mailpit (serveur mail de test) dans le compose

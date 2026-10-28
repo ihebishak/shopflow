@@ -1,0 +1,64 @@
+/**
+ * Événements du topic shopflow.product.events (propriétaire : catalog-service, clé : productId).
+ */
+@namespace("com.shopflow.contracts.product")
+protocol ProductEvents {
+
+  import idl "../common/common.avdl";
+
+  /** Déclinaison d'un produit : une pointure (ou taille) dans un coloris. */
+  record ProductVariant {
+    string sku;
+    string size;
+    string color;
+    com.shopflow.contracts.common.Money price;
+  }
+
+  /** UNKNOWN est la valeur de repli si un consommateur reçoit un motif ajouté après lui. */
+  enum UnpublishReason {
+    UNKNOWN, SELLER, MODERATION, SELLER_SUSPENDED
+  } = UNKNOWN;
+
+  record ProductCreated {
+    string productId;
+    string sellerId;
+    string name;
+    string brand;
+    string category;
+    array<ProductVariant> variants;
+  }
+
+  record ProductVariantAdded {
+    string productId;
+    ProductVariant variant;
+  }
+
+  record ProductUpdated {
+    string productId;
+    array<string> changedFields;
+  }
+
+  record ProductPriceChanged {
+    string productId;
+    string sku;
+    com.shopflow.contracts.common.Money oldPrice;
+    com.shopflow.contracts.common.Money newPrice;
+  }
+
+  record ProductPublished {
+    string productId;
+    string sellerId;
+  }
+
+  record ProductUnpublished {
+    string productId;
+    string sellerId;
+    UnpublishReason reason;
+  }
+
+  record ProductReported {
+    string productId;
+    string sellerId;
+    string reason;
+  }
+}
