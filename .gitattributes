@@ -1,0 +1,18 @@
+# Normalise les fins de ligne dans le dépôt
+* text=auto
+
+# Scripts Unix : toujours LF (sinon ils échouent dans Docker et en CI Linux)
+mvnw text eol=lf
+*.sh text eol=lf
+
+# Scripts Windows : toujours CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binaires
+*.jar binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary

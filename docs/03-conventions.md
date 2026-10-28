@@ -1,0 +1,150 @@
+# 03 — Conventions
+
+## 1. Kafka
+
+### 1.1 Topics
+
+- **Un topic par entité** ; la **clé du message est l'identifiant de l'entité**. Tous les événements d'une même entité arrivent dans la même partition, donc **dans l'ordre**.
+- **Un seul service producteur par topic** (son propriétaire).
+- Nommage : minuscules, séparateur `.` uniquement (jamais `_`) :
+  - événements : `shopflow.<entité>.events`
+  - commandes : `shopflow.<service destinataire>.commands`
+- Rejeux et erreurs : suffixes Spring Kafka par défaut, `-retry-N` et `-dlt`.
+
+| Topic | Propriétaire | Clé | Événements |
+|---|---|---|---|
+| `shopflow.customer.events` | user | customerId | `CustomerRegistered` |
+| `shopflow.seller.events` | user | sellerId | `SellerApplicationSubmitted`, `SellerApplicationUpdated`, `SellerInfoRequested`, `SellerApproved`, `SellerRejected`, `SellerSuspended`, `SellerReinstated` |
+| `shopflow.product.events` | catalog | productId | `ProductCreated`, `ProductVariantAdded`, `ProductUpdated`, `ProductPriceChanged`, `ProductPublished`, `ProductUnpublished`, `ProductReported` |
+| `shopflow.stock.events` | inventory | sku | `StockAdjusted`, `StockLow`, `SkuBackInStock`, `SkuOutOfStock` |
+| `shopflow.reservation.events` | inventory | orderId / dropId | `StockReserved`, `StockReservationFailed`, `StockReleased`, `DropStockAllocated` |
+| `shopflow.cart.events` | cart | customerId | `CartItemAdded`, `CartItemRemoved` |
+| `shopflow.wishlist.events` | wishlist | customerId | `WishlistItemAdded`, `WishlistItemRemoved`, `PriceDropAlertTriggered`, `BackInStockAlertTriggered` |
+| `shopflow.order.events` | order | orderId | `OrderPlaced`, `OrderConfirmed`, `OrderCancelled`, `OrderCompleted`, `SubOrderShipmentOverdue` |
+| `shopflow.payment.events` | payment | orderId | `PaymentIntentCreated`, `PaymentSucceeded`, `PaymentFailed`, `RefundIssued` |
+| `shopflow.shipment.events` | shipping | subOrderId | `ShipmentCreated`, `ShipmentStatusChanged`, `ShipmentDelivered` |
+| `shopflow.payout.events` | payout | sellerId | `PayoutAccountOpened`, `SellerEarningRecorded`, `PayoutInitiated`, `PayoutCompleted`, `PayoutFailed`, `PayoutAccountUpdated` |
+| `shopflow.drop.events` | promotion | dropId | `DropProposed`, `DropApproved`, `DropRejected`, `DropScheduled`, `DropCancelled`, `DropStartingSoon`, `DropOpened`, `DropItemClaimed`, `DropClaimExpired`, `DropSoldOut`, `DropClosed` |
+| `shopflow.marketing.events` | promotion | customerId | `CartAbandoned`, `CouponIssued` |
+| `shopflow.review.events` | review | productId | `ReviewRequested`, `ReviewPublished`, `ReviewRejected`, `ReviewReported`, `ReviewRemoved`, `ReviewReplied` |
+| `shopflow.loyalty.events` | loyalty | customerId | `LoyaltyPointsEarned`, `LoyaltyTierChanged`, `LoyaltyPointsRedeemed` |
+
+| Topic de commandes | Destinataire | Clé | Commandes |
+|---|---|---|---|
+| `shopflow.inventory.commands` | inventory | orderId | `ReserveStock`, `ConfirmStockReservation`, `ReleaseStock` |
+| `shopflow.payment.commands` | payment | orderId | `CreatePaymentIntent`, `CancelPaymentIntent`, `RefundPayment` |
+| `shopflow.payout.commands` | payout | sellerId | `OpenPayoutAccount` |
+| `shopflow.promotion.commands` | promotion | customerId | `IssueCoupon` |
+| `shopflow.notification.commands` | notification | id du destinataire | `SendTransactionalEmail` |
+
+### 1.2 Format : Avro + Schema Registry
+
+- Chaque événement et chaque commande a un **schéma Avro** (`.avsc`) enregistré dans le **Schema Registry**.
+- Les schémas vivent dans le module Maven **`contracts`** (remplace `common`) ; les classes Java sont **générées** à partir des schémas.
+- Kafka UI est branché sur le Schema Registry pour décoder les messages.
+- Les événements de domaine **internes** à `payout-service` (Axon) ne sont pas concernés : ils restent privés au service.
+
+### 1.3 Enveloppe : CloudEvents (headers Kafka)
+
+Le message contient uniquement les données métier ; les métadonnées sont dans les headers, selon le standard **CloudEvents** (mode binaire) :
+
+| Header | Exemple | Rôle |
+|---|---|---|
+| `ce_specversion` | `1.0` | Version du standard |
+| `ce_id` | UUID | Identifiant unique du message → idempotence |
+| `ce_type` | `shopflow.order.OrderPlaced.v1` | Type et version de l'événement ou de la commande |
+| `ce_source` | `/order-service` | Producteur |
+| `ce_time` | `2026-10-28T10:00:00Z` | Date du fait (UTC) |
+| `ce_subject` | id de l'entité | Entité concernée |
+| `ce_correlationid` | UUID | Identifiant du parcours de bout en bout (services, Camunda, logs, traces) |
+| `ce_causationid` | UUID | `ce_id` du message qui a provoqué celui-ci |
+
+### 1.4 Garanties de livraison
+
+- **Outbox systématique** : l'état métier et l'événement à publier sont écrits dans **la même transaction MongoDB** ; un relais publie ensuite sur Kafka. → MongoDB tourne en **replica set** (un seul nœud en local).
+- **Consommateurs idempotents** : chaque consommateur mémorise les `ce_id` traités et ignore les doublons (livraison « au moins une fois »).
+- **Erreurs** : rejeux automatiques sur les topics `-retry-N`, puis isolement dans `-dlt` (surveillé et alerté en phase 10).
+
+### 1.5 Versioning
+
+- Compatibilité **FULL** dans le Schema Registry : on ne peut qu'**ajouter ou retirer des champs optionnels avec valeur par défaut**.
+- Changement incompatible → **nouveau type** (`….v2`) publié en parallèle de la v1 le temps que tous les consommateurs migrent.
+
+## 2. API REST
+
+- Tout passe par la **gateway**, préfixe versionné **`/api/v1`**.
+- **Trois espaces** (sécurisés par chemin dans la gateway) :
+
+| Espace | Préfixe | Exemples |
+|---|---|---|
+| Client / public | `/api/v1/…` | `/api/v1/products`, `/api/v1/orders` |
+| Vendeur | `/api/v1/seller/…` | `/api/v1/seller/products`, `/api/v1/seller/sub-orders` |
+| Admin | `/api/v1/admin/…` | `/api/v1/admin/sellers`, `/api/v1/admin/drops` |
+
+- Ressources **au pluriel**, URL en **kebab-case**, JSON en **camelCase**.
+- Actions métier : **`POST` sur un verbe explicite** — `POST /api/v1/orders/{id}/cancel`, `POST /api/v1/admin/sellers/{id}/suspend`.
+- Pagination style Spring : `?page=0&size=20&sort=createdAt,desc`.
+- Documentation **OpenAPI** générée (springdoc), agrégée dans la gateway.
+
+## 3. Erreurs : Problem Details (RFC 9457)
+
+Toutes les erreurs de tous les services ont la même forme (`application/problem+json`) :
+
+```json
+{
+  "type": "https://shopflow.dev/errors/order-already-shipped",
+  "title": "Order already shipped",
+  "status": 409,
+  "detail": "Order ORD-8F3K2Q cannot be cancelled: sub-order ORD-8F3K2Q-1 has been shipped.",
+  "code": "ORDER_ALREADY_SHIPPED",
+  "correlationId": "4f1c…"
+}
+```
+
+- `code` : **stable**, en `UPPER_SNAKE_CASE` ; le frontend le traduit en français.
+- `correlationId` : permet de retrouver toute la trace dans les logs.
+- Erreurs de validation : liste `errors[]` (`field`, `code`, `message`).
+
+## 4. Montants
+
+- Partout (API, événements, MongoDB) : **`{ "amount": 16000, "currency": "EUR" }`** — montant en **centimes** (entier) + devise ISO 4217.
+- Objet Java **`Money`** (module `contracts`) pour tous les calculs ; jamais de `double`/`float` pour de l'argent.
+- **Commission arrondie au centime inférieur** (le vendeur n'est jamais lésé) : 10 % de 159,99 € = 15,99 €.
+
+## 5. Identifiants
+
+- **Technique : UUID v7** (unique et ordonné dans le temps, efficace pour les index MongoDB).
+- **Références lisibles** pour les humains (e-mails, support, interface) :
+
+| Objet | Format | Exemple |
+|---|---|---|
+| Commande | `ORD-` + 6 caractères (base 32 sans ambiguïté) | `ORD-8F3K2Q` |
+| Sous-commande | commande + numéro | `ORD-8F3K2Q-1` |
+| Colis | `SF` + 9 chiffres + `FR` | `SF482913570FR` |
+| Drop | `DRP-` + 6 caractères | `DRP-K29XQA` |
+| Versement | `PAY-` + 6 caractères | `PAY-7HD2MF` |
+| Boutique | slug | `karim-streetwear` |
+
+## 6. Dates et durées
+
+- Dates **toujours en UTC**, format ISO-8601 (`Instant` en Java) ; conversion en heure de Paris **uniquement dans l'interface**.
+- Durées en ISO-8601 (`PT30M`, `P14D`), aussi bien dans la configuration que dans les timers BPMN.
+
+## 7. Langue
+
+| En anglais | En français |
+|---|---|
+| Code, API, événements, topics, codes d'erreur, messages de commit | Documentation, interface (traduisible en anglais plus tard) |
+
+## 8. Architecture interne d'un service : hexagonale « légère »
+
+```
+com.shopflow.<service>
+├── domain          modèle et règles métier — Java pur, sans Spring, Kafka, MongoDB ni Camunda
+├── application     cas d'usage (« passer une commande »…) et ports (interfaces)
+└── infrastructure  adaptateurs : web (REST), kafka, mongo, camunda, axon, stripe…
+```
+
+- Sens des dépendances : `infrastructure` → `application` → `domain`, **jamais l'inverse**.
+- Règles vérifiées automatiquement par des **tests ArchUnit** (règles partagées via le starter).
+- Camunda et Axon sont des **détails d'infrastructure** : le domaine ne les connaît pas.
