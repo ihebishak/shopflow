@@ -28,7 +28,7 @@ Projet personnel d'architecture **microservices pilotée par les événements** 
 Prérequis : Docker Desktop, JDK 17+.
 
 ```bash
-# Infrastructure (Kafka, MongoDB et leurs interfaces web)
+# Infrastructure (Kafka, Schema Registry, MongoDB et leurs interfaces web)
 docker compose up -d
 
 # Build du backend (Maven Wrapper : aucune installation de Maven nécessaire)
@@ -39,6 +39,7 @@ cd backend
 | Outil | URL |
 |---|---|
 | Kafka UI | http://localhost:8090 |
+| Schema Registry | http://localhost:8081 |
 | Mongo Express | http://localhost:8091 |
 
 ## Licence

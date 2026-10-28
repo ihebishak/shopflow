@@ -39,8 +39,12 @@
 
 ### 1.2 Format : Avro + Schema Registry
 
-- Chaque événement et chaque commande a un **schéma Avro** (`.avsc`) enregistré dans le **Schema Registry**.
-- Les schémas vivent dans le module Maven **`contracts`** (remplace `common`) ; les classes Java sont **générées** à partir des schémas.
+- Chaque événement et chaque commande a un **schéma Avro** enregistré dans le **Schema Registry** (Confluent).
+- Les schémas sont écrits en **Avro IDL**, **un fichier `.avdl` par topic** (`product/product.avdl`, `order/order.avdl`…), dans le module Maven **`contracts`** ; les classes Java sont **générées** au build (`stringType = String`).
+- Types partagés (`Money`…) : `common/common.avdl`, importés par les autres fichiers.
+- **Stratégie de nommage des subjects : `TopicRecordNameStrategy`** (`<topic>-<nom complet du record>`). Indispensable avec « un topic par entité » : chaque type d'événement d'un topic a son propre subject et sa propre vérification de compatibilité.
+- Les **enums** ont une valeur de repli (`= UNKNOWN`) pour qu'un consommateur plus ancien supporte une valeur ajoutée plus tard.
+- Côté consommateur : `specific.avro.reader = true` → chaque message arrive directement sous la forme de sa classe générée.
 - Kafka UI est branché sur le Schema Registry pour décoder les messages.
 - Les événements de domaine **internes** à `payout-service` (Axon) ne sont pas concernés : ils restent privés au service.
 
@@ -108,7 +112,11 @@ Toutes les erreurs de tous les services ont la même forme (`application/problem
 ## 4. Montants
 
 - Partout (API, événements, MongoDB) : **`{ "amount": 16000, "currency": "EUR" }`** — montant en **centimes** (entier) + devise ISO 4217.
-- Objet Java **`Money`** (module `contracts`) pour tous les calculs ; jamais de `double`/`float` pour de l'argent.
+- **Deux représentations**, pour respecter l'architecture hexagonale :
+  - **`Money` métier** (`com.shopflow.kernel.money.Money`, module **`shared-kernel`**, Java pur) : tous les calculs (addition, multiplication, pourcentage arrondi) ; utilisé par les domaines.
+  - **`Money` Avro** (`com.shopflow.contracts.common.Money`, module `contracts`) : transport uniquement ; conversion dans les adaptateurs d'infrastructure.
+- Jamais de `double`/`float` pour de l'argent ; dépassement de capacité → exception (jamais de valeur silencieusement fausse).
+- Pourcentages exprimés en **points de base** (1 000 = 10 %).
 - **Commission arrondie au centime inférieur** (le vendeur n'est jamais lésé) : 10 % de 159,99 € = 15,99 €.
 
 ## 5. Identifiants

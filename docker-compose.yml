@@ -1,5 +1,5 @@
 # Infrastructure locale de ShopFlow
-#   docker compose up -d      -> démarre Kafka, MongoDB et leurs interfaces web
+#   docker compose up -d      -> démarre Kafka, le Schema Registry, MongoDB et leurs interfaces web
 #   docker compose down       -> arrête tout (ajouter -v pour effacer les données)
 
 services:
@@ -32,6 +32,26 @@ services:
       timeout: 10s
       retries: 10
 
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.9.0
+    container_name: shopflow-schema-registry
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:29092
+      # FULL : on ne peut qu'ajouter ou retirer des champs optionnels avec valeur par défaut (cf. docs/03-conventions.md)
+      SCHEMA_REGISTRY_SCHEMA_COMPATIBILITY_LEVEL: full
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/subjects > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   kafka-ui:
     image: kafbat/kafka-ui:v1.2.0
     container_name: shopflow-kafka-ui
@@ -40,8 +60,11 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: shopflow
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
     depends_on:
       kafka:
+        condition: service_healthy
+      schema-registry:
         condition: service_healthy
 
   mongo:
