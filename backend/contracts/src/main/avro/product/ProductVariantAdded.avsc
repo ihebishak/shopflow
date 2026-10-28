@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "ProductVariantAdded",
+  "namespace": "com.shopflow.contracts.product",
+  "doc": "Une nouvelle variante (pointure, coloris) a été ajoutée à un produit.",
+  "fields": [
+    { "name": "productId", "type": "string" },
+    { "name": "variant", "type": "com.shopflow.contracts.product.ProductVariant" }
+  ]
+}

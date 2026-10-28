@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "ProductPublished",
+  "namespace": "com.shopflow.contracts.product",
+  "doc": "Un produit est devenu visible dans le catalogue.",
+  "fields": [
+    { "name": "productId", "type": "string" },
+    { "name": "sellerId", "type": "string" }
+  ]
+}

@@ -12,7 +12,7 @@
 
     <artifactId>contracts</artifactId>
     <name>contracts</name>
-    <description>Contrats Kafka : schémas Avro (IDL) des événements et des commandes, classes Java générées</description>
+    <description>Contrats Kafka : schémas Avro (.avsc) des événements et des commandes, classes Java générées</description>
 
     <dependencies>
         <dependency>
@@ -56,12 +56,18 @@
                     <execution>
                         <phase>generate-sources</phase>
                         <goals>
-                            <goal>idl-protocol</goal>
+                            <goal>schema</goal>
                         </goals>
                         <configuration>
                             <sourceDirectory>${project.basedir}/src/main/avro</sourceDirectory>
                             <outputDirectory>${project.build.directory}/generated-sources/avro</outputDirectory>
                             <stringType>String</stringType>
+                            <!-- Types référencés par d'autres schémas : à compiler en premier -->
+                            <imports>
+                                <import>${project.basedir}/src/main/avro/common/Money.avsc</import>
+                                <import>${project.basedir}/src/main/avro/product/ProductVariant.avsc</import>
+                                <import>${project.basedir}/src/main/avro/product/UnpublishReason.avsc</import>
+                            </imports>
                         </configuration>
                     </execution>
                 </executions>

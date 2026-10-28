@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "Money",
+  "namespace": "com.shopflow.contracts.common",
+  "doc": "Montant en unités mineures (centimes pour l'euro) et devise ISO 4217.",
+  "fields": [
+    { "name": "amount", "type": "long" },
+    { "name": "currency", "type": "string" }
+  ]
+}

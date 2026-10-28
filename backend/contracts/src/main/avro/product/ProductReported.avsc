@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "ProductReported",
+  "namespace": "com.shopflow.contracts.product",
+  "doc": "Un client a signalé un produit (contrefaçon, contenu inapproprié…).",
+  "fields": [
+    { "name": "productId", "type": "string" },
+    { "name": "sellerId", "type": "string" },
+    { "name": "reason", "type": "string" }
+  ]
+}

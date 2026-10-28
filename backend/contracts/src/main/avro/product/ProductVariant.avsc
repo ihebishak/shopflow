@@ -1,0 +1,12 @@
+{
+  "type": "record",
+  "name": "ProductVariant",
+  "namespace": "com.shopflow.contracts.product",
+  "doc": "Déclinaison d'un produit : une pointure (ou taille) dans un coloris.",
+  "fields": [
+    { "name": "sku", "type": "string" },
+    { "name": "size", "type": "string" },
+    { "name": "color", "type": "string" },
+    { "name": "price", "type": "com.shopflow.contracts.common.Money" }
+  ]
+}

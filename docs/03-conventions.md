@@ -40,8 +40,9 @@
 ### 1.2 Format : Avro + Schema Registry
 
 - Chaque événement et chaque commande a un **schéma Avro** enregistré dans le **Schema Registry** (Confluent).
-- Les schémas sont écrits en **Avro IDL**, **un fichier `.avdl` par topic** (`product/product.avdl`, `order/order.avdl`…), dans le module Maven **`contracts`** ; les classes Java sont **générées** au build (`stringType = String`).
-- Types partagés (`Money`…) : `common/common.avdl`, importés par les autres fichiers.
+- Les schémas sont écrits en **`.avsc`** (le format natif d'Avro, identique à ce que stocke le registre), **un fichier par type**, rangés par topic : `src/main/avro/<entité>/<Type>.avsc` dans le module Maven **`contracts`** ; les classes Java sont **générées** au build (`stringType = String`).
+- Types partagés (`Money`…) : `src/main/avro/common/`. Tout type référencé par un autre schéma est déclaré dans les `<imports>` du plugin Avro (`contracts/pom.xml`) pour être compilé en premier.
+- Version d'un événement : propriété `"version"` dans le schéma (absente = 1), reprise dans le header `ce_type` (`….v2`).
 - **Stratégie de nommage des subjects : `TopicRecordNameStrategy`** (`<topic>-<nom complet du record>`). Indispensable avec « un topic par entité » : chaque type d'événement d'un topic a son propre subject et sa propre vérification de compatibilité.
 - Les **enums** ont une valeur de repli (`= UNKNOWN`) pour qu'un consommateur plus ancien supporte une valeur ajoutée plus tard.
 - Côté consommateur : `specific.avro.reader = true` → chaque message arrive directement sous la forme de sa classe générée.
