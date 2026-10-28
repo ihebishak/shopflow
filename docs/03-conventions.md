@@ -40,10 +40,11 @@
 ### 1.2 Format : Avro + Schema Registry
 
 - Chaque événement et chaque commande a un **schéma Avro** enregistré dans le **Schema Registry** (Confluent).
-- Les schémas sont écrits en **Avro IDL**, **un fichier `.avdl` par topic** (`product/product.avdl`, `order/order.avdl`…), dans le module Maven **`contracts`** ; les classes Java sont **générées** au build (`stringType = String`).
-- Types partagés (`Money`…) : `common/common.avdl`, importés par les autres fichiers.
+- Les schémas sont écrits en **`.avsc`** (le format natif d'Avro, identique à ce que stocke le registre), **un fichier par type**, rangés par topic : `src/main/avro/<entité>/<Type>.avsc` dans le module Maven **`contracts`** ; les classes Java sont **générées** au build (`stringType = String`).
+- Types partagés (`Money`…) : `src/main/avro/common/`. Tout type référencé par un autre schéma est déclaré dans les `<imports>` du plugin Avro (`contracts/pom.xml`) pour être compilé en premier.
+- Version d'un événement : propriété `"version"` dans le schéma (absente = 1), reprise dans le header `ce_type` (`….v2`).
 - **Stratégie de nommage des subjects : `TopicRecordNameStrategy`** (`<topic>-<nom complet du record>`). Indispensable avec « un topic par entité » : chaque type d'événement d'un topic a son propre subject et sa propre vérification de compatibilité.
-- Les **enums** ont une valeur de repli (`= UNKNOWN`) pour qu'un consommateur plus ancien supporte une valeur ajoutée plus tard.
+- Les **enums** ont une valeur de repli (`"default": "UNKNOWN"`) pour qu'un consommateur plus ancien supporte une valeur ajoutée plus tard.
 - Côté consommateur : `specific.avro.reader = true` → chaque message arrive directement sous la forme de sa classe générée.
 - Kafka UI est branché sur le Schema Registry pour décoder les messages.
 - Les événements de domaine **internes** à `payout-service` (Axon) ne sont pas concernés : ils restent privés au service.
@@ -63,9 +64,17 @@ Le message contient uniquement les données métier ; les métadonnées sont dan
 | `ce_correlationid` | UUID | Identifiant du parcours de bout en bout (services, Camunda, logs, traces) |
 | `ce_causationid` | UUID | `ce_id` du message qui a provoqué celui-ci |
 
+**Mise en œuvre (module `shopflow-starter`)** — rien à écrire dans les services :
+
+- Publication : `KafkaEventPublisher.publish(topic, clé, message)` calcule l'enveloppe (`ce_type` déduit de la classe Avro, `ce_source` = `/` + `spring.application.name`, `ce_id` en UUID v7…).
+- Consommation : un intercepteur restaure la corrélation dans le MDC et mémorise le message en cours ; tout message publié pendant son traitement reçoit automatiquement le même `ce_correlationid` et `ce_causationid` = son `ce_id`.
+- HTTP : header **`X-Correlation-Id`** (créé par la gateway, repris ou généré par chaque service, renvoyé dans la réponse ; valeur extérieure filtrée : `[A-Za-z0-9-]{1,64}`).
+- Logs : chaque ligne affiche `[correlationId]` après le niveau de log.
+- Le `correlationId` (parcours métier, peut durer des jours dans Camunda) est distinct du `traceId` OpenTelemetry (phase 10, requête technique de quelques secondes).
+
 ### 1.4 Garanties de livraison
 
-- **Outbox systématique** : l'état métier et l'événement à publier sont écrits dans **la même transaction MongoDB** ; un relais publie ensuite sur Kafka. → MongoDB tourne en **replica set** (un seul nœud en local).
+- **Outbox systématique** : l'état métier et l'événement à publier sont écrits dans **la même transaction MongoDB** ; un relais publie ensuite sur Kafka. → MongoDB tourne en **replica set** `rs0` (un seul nœud en local). Depuis la machine hôte : `mongodb://localhost:27017/?directConnection=true` ; entre conteneurs : `mongodb://mongo:27017/?replicaSet=rs0`.
 - **Consommateurs idempotents** : chaque consommateur mémorise les `ce_id` traités et ignore les doublons (livraison « au moins une fois »).
 - **Erreurs** : rejeux automatiques sur les topics `-retry-N`, puis isolement dans `-dlt` (surveillé et alerté en phase 10).
 

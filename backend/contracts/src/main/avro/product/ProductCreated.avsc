@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "ProductCreated",
+  "namespace": "com.shopflow.contracts.product",
+  "doc": "Un vendeur a créé un produit (en brouillon) avec ses variantes.",
+  "fields": [
+    { "name": "productId", "type": "string" },
+    { "name": "sellerId", "type": "string" },
+    { "name": "name", "type": "string" },
+    { "name": "brand", "type": "string" },
+    { "name": "category", "type": "string" },
+    { "name": "variants", "type": { "type": "array", "items": "com.shopflow.contracts.product.ProductVariant" } }
+  ]
+}

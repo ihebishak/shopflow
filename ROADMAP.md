@@ -57,9 +57,9 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 - ✅ 1.1 Monorepo + projet Maven multi-modules + Maven Wrapper
 - ✅ 1.2 Module `common` : événements Kafka partagés *(provisoire, supprimé en 1.4)*
 - ✅ 1.3 `docker-compose` infra : Kafka (KRaft), MongoDB, Kafka UI, Mongo Express
-- ✅ 1.4 Module `contracts` (Avro IDL, génération des classes, `TopicRecordNameStrategy`, schémas du topic produit + test aller-retour) ; module `shared-kernel` (`Money` métier) ; Schema Registry Confluent dans le compose (compatibilité FULL), branché sur Kafka UI
-- ⬜ 1.5 Enveloppe CloudEvents (headers Kafka) + MongoDB en replica set (prérequis de l'outbox)
-- ⬜ 1.6 Starter interne `shopflow-starter` : config Kafka/Avro, CloudEvents, **outbox**, consommateurs idempotents, retry/DLT, erreurs Problem Details (RFC 9457), règles ArchUnit de l'architecture hexagonale
+- ✅ 1.4 Module `contracts` (Avro `.avsc`, génération des classes, `TopicRecordNameStrategy`, schémas du topic produit + test aller-retour) ; module `shared-kernel` (`Money` métier) ; Schema Registry Confluent dans le compose (compatibilité FULL), branché sur Kafka UI
+- ✅ 1.5 Module `shopflow-starter` : enveloppe CloudEvents (headers Kafka), propagation du `correlationId` (HTTP, Kafka, logs), UUID v7 ; MongoDB en replica set (prérequis de l'outbox)
+- ⬜ 1.6 Compléter `shopflow-starter` : config Kafka/Avro par défaut, **outbox**, consommateurs idempotents, retry/DLT, erreurs Problem Details (RFC 9457), règles ArchUnit de l'architecture hexagonale
 - ⬜ 1.7 Ajout de Redis, Keycloak et Mailpit (serveur mail de test) dans le compose
 - ⬜ 1.8 Ajout de Camunda 8 (Zeebe, Operate, Tasklist, Elasticsearch) dans le compose + premier processus « hello world »
 

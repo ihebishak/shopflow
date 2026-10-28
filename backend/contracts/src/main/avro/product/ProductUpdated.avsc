@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "ProductUpdated",
+  "namespace": "com.shopflow.contracts.product",
+  "doc": "Les informations descriptives d'un produit ont changé (hors prix).",
+  "fields": [
+    { "name": "productId", "type": "string" },
+    { "name": "changedFields", "type": { "type": "array", "items": "string" } }
+  ]
+}

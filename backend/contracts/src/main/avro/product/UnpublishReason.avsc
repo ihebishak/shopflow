@@ -1,0 +1,8 @@
+{
+  "type": "enum",
+  "name": "UnpublishReason",
+  "namespace": "com.shopflow.contracts.product",
+  "doc": "Motif de dépublication. UNKNOWN est la valeur de repli si un consommateur reçoit un motif ajouté après lui.",
+  "symbols": ["UNKNOWN", "SELLER", "MODERATION", "SELLER_SUSPENDED"],
+  "default": "UNKNOWN"
+}

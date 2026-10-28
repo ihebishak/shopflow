@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "ProductUnpublished",
+  "namespace": "com.shopflow.contracts.product",
+  "doc": "Un produit a été retiré du catalogue.",
+  "fields": [
+    { "name": "productId", "type": "string" },
+    { "name": "sellerId", "type": "string" },
+    { "name": "reason", "type": "com.shopflow.contracts.product.UnpublishReason" }
+  ]
+}

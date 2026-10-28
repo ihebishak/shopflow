@@ -1,0 +1,12 @@
+{
+  "type": "record",
+  "name": "ProductPriceChanged",
+  "namespace": "com.shopflow.contracts.product",
+  "doc": "Le prix d'une variante a changé.",
+  "fields": [
+    { "name": "productId", "type": "string" },
+    { "name": "sku", "type": "string" },
+    { "name": "oldPrice", "type": "com.shopflow.contracts.common.Money" },
+    { "name": "newPrice", "type": "com.shopflow.contracts.common.Money" }
+  ]
+}
