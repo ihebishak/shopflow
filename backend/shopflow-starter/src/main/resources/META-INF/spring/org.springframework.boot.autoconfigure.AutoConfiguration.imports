@@ -1,0 +1,2 @@
+com.shopflow.starter.autoconfigure.ShopflowCloudEventsAutoConfiguration
+com.shopflow.starter.autoconfigure.ShopflowWebAutoConfiguration

@@ -41,6 +41,7 @@ cd backend
 | Kafka UI | http://localhost:8090 |
 | Schema Registry | http://localhost:8081 |
 | Mongo Express | http://localhost:8091 |
+| MongoDB (replica set `rs0`) | `mongodb://localhost:27017/?directConnection=true` |
 
 ## Licence
 

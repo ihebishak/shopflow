@@ -21,6 +21,7 @@
     <modules>
         <module>shared-kernel</module>
         <module>contracts</module>
+        <module>shopflow-starter</module>
     </modules>
 
     <properties>
@@ -55,6 +56,11 @@
             <dependency>
                 <groupId>com.shopflow</groupId>
                 <artifactId>contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.shopflow</groupId>
+                <artifactId>shopflow-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
