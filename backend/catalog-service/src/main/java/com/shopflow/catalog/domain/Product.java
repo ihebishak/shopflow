@@ -1,6 +1,7 @@
 package com.shopflow.catalog.domain;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -42,7 +43,8 @@ public final class Product {
      * Crée un brouillon, invisible des clients jusqu'à sa publication.
      *
      * @param description facultative
-     * @param now         date de création (passée en paramètre pour que les tests puissent la fixer)
+     * @param now         date de création (passée en paramètre pour que les tests puissent la fixer),
+     *                    conservée à la milliseconde comme dans MongoDB
      * @throws InvalidProductException si une règle n'est pas respectée
      */
     public static Product draft(SellerId sellerId, String name, String brand, String category,
@@ -54,7 +56,20 @@ public final class Product {
                 required("brand", brand, BRAND_MAX_LENGTH),
                 required("category", category, CATEGORY_MAX_LENGTH),
                 optional("description", description, DESCRIPTION_MAX_LENGTH),
-                ProductStatus.DRAFT, now);
+                ProductStatus.DRAFT, now.truncatedTo(ChronoUnit.MILLIS));
+    }
+
+    /**
+     * Reconstruit un produit enregistré. Les règles ne sont pas revérifiées : elles l'ont été à sa création.
+     *
+     * @param description {@code null} s'il n'y en a pas
+     */
+    public static Product restore(ProductId id, SellerId sellerId, String name, String brand, String category,
+                                  String description, ProductStatus status, Instant createdAt) {
+        return new Product(Objects.requireNonNull(id, "id"), Objects.requireNonNull(sellerId, "sellerId"),
+                Objects.requireNonNull(name, "name"), Objects.requireNonNull(brand, "brand"),
+                Objects.requireNonNull(category, "category"), description,
+                Objects.requireNonNull(status, "status"), Objects.requireNonNull(createdAt, "createdAt"));
     }
 
     private static String required(String field, String value, int maxLength) {
