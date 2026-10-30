@@ -36,6 +36,16 @@ class UuidV7Test {
     }
 
     @Test
+    void is_strictly_increasing_even_within_the_same_millisecond() {
+        String previous = UuidV7.generate().toString();
+        for (int i = 0; i < 100_000; i++) {
+            String next = UuidV7.generate().toString();
+            assertThat(next).isGreaterThan(previous);
+            previous = next;
+        }
+    }
+
+    @Test
     void is_unique() {
         Set<UUID> uuids = new HashSet<>();
         for (int i = 0; i < 10_000; i++) {

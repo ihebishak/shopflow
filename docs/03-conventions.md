@@ -64,6 +64,9 @@ Le message contient uniquement les données métier ; les métadonnées sont dan
 | `ce_correlationid` | UUID | Identifiant du parcours de bout en bout (services, Camunda, logs, traces) |
 | `ce_causationid` | UUID | `ce_id` du message qui a provoqué celui-ci |
 
+**Configuration par défaut (module `shopflow-starter`)** : sérialiseurs Avro, URL du Schema Registry (`http://localhost:8081`), `TopicRecordNameStrategy`, lecture en classes générées, `acks=all` + idempotence du producteur, groupe de consommateurs = nom du service. Un service n'a besoin que de `spring.application.name`.
+**Enregistrement des schémas** : automatique en local (`auto.register.schemas=true`) ; en CI et production, `SPRING_KAFKA_PROPERTIES_AUTO_REGISTER_SCHEMAS=false` : seule la CI enregistre les schémas après vérification de compatibilité.
+
 **Mise en œuvre (module `shopflow-starter`)** — rien à écrire dans les services :
 
 - Publication : `KafkaEventPublisher.publish(topic, clé, message)` calcule l'enveloppe (`ce_type` déduit de la classe Avro, `ce_source` = `/` + `spring.application.name`, `ce_id` en UUID v7…).
@@ -74,7 +77,14 @@ Le message contient uniquement les données métier ; les métadonnées sont dan
 
 ### 1.4 Garanties de livraison
 
-- **Outbox systématique** : l'état métier et l'événement à publier sont écrits dans **la même transaction MongoDB** ; un relais publie ensuite sur Kafka. → MongoDB tourne en **replica set** `rs0` (un seul nœud en local). Depuis la machine hôte : `mongodb://localhost:27017/?directConnection=true` ; entre conteneurs : `mongodb://mongo:27017/?replicaSet=rs0`.
+- **Outbox systématique** : l'état métier et l'événement à publier sont écrits dans **la même transaction MongoDB** ; un relais publie ensuite sur Kafka.
+  - Dans un service : `outboxPublisher.publish(topic, clé, message)` dans une méthode `@Transactional` (hors transaction → `IllegalStateException`).
+  - Collection `outbox` : contenu en **JSON** (lisible dans Mongo Express), enveloppe CloudEvents, `publishedAt`, `attempts`, `lastError`. Les messages publiés sont supprimés après **7 jours** (index TTL).
+  - Relais **réveillé dès la validation de la transaction**, plus un passage de sécurité **chaque seconde**.
+  - **Un seul relais actif** par service (verrou `outbox_lock`) ; publication **dans l'ordre** des `ce_id` (UUID v7 strictement croissants) ; **arrêt au premier échec**, reprise au passage suivant.
+  - Réglages : `shopflow.outbox.poll-interval`, `batch-size`, `lock-lease`, `send-timeout`, `retention`.
+  - **Délais** : un envoi bloqué ne doit jamais survivre au verrou, sinon un second relais publierait en parallèle. Le verrou est renouvelé avant chaque message ; Kafka abandonne avant le relais (`delivery.timeout.ms` 10 s < `send-timeout` 15 s) ; l'envoi complet tient dans le verrou (`max.block.ms` 10 s + `send-timeout` 15 s < `lock-lease` 30 s). Vérifié au démarrage : un réglage incohérent empêche le service de démarrer.
+  - MongoDB tourne en **replica set** `rs0` (un seul nœud en local). Depuis la machine hôte : `mongodb://localhost:27017/?directConnection=true` ; entre conteneurs : `mongodb://mongo:27017/?replicaSet=rs0`.
 - **Consommateurs idempotents** : chaque consommateur mémorise les `ce_id` traités et ignore les doublons (livraison « au moins une fois »).
 - **Erreurs** : rejeux automatiques sur les topics `-retry-N`, puis isolement dans `-dlt` (surveillé et alerté en phase 10).
 
