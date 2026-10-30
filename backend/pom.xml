@@ -29,6 +29,8 @@
         <spring-cloud.version>2025.0.0</spring-cloud.version>
         <avro.version>1.11.4</avro.version>
         <confluent.version>7.9.0</confluent.version>
+        <!-- 1.21.3 (fournie par Spring Boot 3.5.6) ne sait pas dialoguer avec Docker Engine 29+ -->
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
 
     <!-- Les sérialiseurs Avro de Confluent ne sont pas publiés sur Maven Central -->

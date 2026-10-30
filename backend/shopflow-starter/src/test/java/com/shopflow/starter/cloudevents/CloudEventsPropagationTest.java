@@ -27,19 +27,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  * De bout en bout, avec un vrai Kafka (embarqué) et Avro :
  * « catalog » publie ProductCreated → un consommateur le reçoit et publie ProductPublished en réaction.
  * Vérifie que la corrélation suit le parcours et que la causalité relie les deux messages.
+ * Aucune propriété Kafka/Avro n'est déclarée ici : les valeurs par défaut du starter suffisent.
  */
 @SpringBootTest(classes = CloudEventsPropagationTest.TestApplication.class, properties = {
         "spring.application.name=catalog-service",
         "spring.main.web-application-type=none",
+        "spring.autoconfigure.exclude="
+                + "org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration",
         "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
-        "spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer",
-        "spring.kafka.producer.value-serializer=io.confluent.kafka.serializers.KafkaAvroSerializer",
-        "spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer",
-        "spring.kafka.consumer.value-deserializer=io.confluent.kafka.serializers.KafkaAvroDeserializer",
-        "spring.kafka.consumer.auto-offset-reset=earliest",
-        "spring.kafka.properties.schema.registry.url=mock://cloudevents-propagation",
-        "spring.kafka.properties.value.subject.name.strategy=io.confluent.kafka.serializers.subject.TopicRecordNameStrategy",
-        "spring.kafka.properties.specific.avro.reader=true"
+        "spring.kafka.properties.schema.registry.url=mock://cloudevents-propagation"
 })
 @EmbeddedKafka(partitions = 1, topics = CloudEventsPropagationTest.TOPIC)
 class CloudEventsPropagationTest {
