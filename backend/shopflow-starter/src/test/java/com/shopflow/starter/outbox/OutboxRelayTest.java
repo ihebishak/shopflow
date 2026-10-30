@@ -75,17 +75,17 @@ class OutboxRelayTest {
         kafka.failAfter = 1;
         assertThat(relay.relayPending()).as("seul le premier passe, puis Kafka tombe").isEqualTo(1);
 
-        assertThat(reload(first).publishedAt()).isNotNull();
+        assertThat(reload(first).getPublishedAt()).isNotNull();
         OutboxMessage failed = reload(second);
-        assertThat(failed.publishedAt()).isNull();
-        assertThat(failed.attempts()).isEqualTo(1);
-        assertThat(failed.lastError()).contains("Kafka is down");
-        assertThat(reload(third).publishedAt()).as("jamais publié avant le précédent").isNull();
+        assertThat(failed.getPublishedAt()).isNull();
+        assertThat(failed.getAttempts()).isEqualTo(1);
+        assertThat(failed.getLastError()).contains("Kafka is down");
+        assertThat(reload(third).getPublishedAt()).as("jamais publié avant le précédent").isNull();
 
         kafka.failNext = false;
         assertThat(relay.relayPending()).as("Kafka revenu : reprise dans l'ordre").isEqualTo(2);
         assertThat(kafka.sentSellerIds).containsExactly("seller-1", "seller-2", "seller-2", "seller-3");
-        assertThat(reload(third).publishedAt()).isNotNull();
+        assertThat(reload(third).getPublishedAt()).isNotNull();
     }
 
     @Test
@@ -101,10 +101,10 @@ class OutboxRelayTest {
         assertThat(relay.relayPending()).isZero();
 
         OutboxMessage failed = reload(stuck);
-        assertThat(failed.publishedAt()).isNull();
-        assertThat(failed.attempts()).isEqualTo(1);
-        assertThat(failed.lastError()).contains("TimeoutException");
-        assertThat(reload(next).attempts()).as("jamais tenté avant le précédent").isZero();
+        assertThat(failed.getPublishedAt()).isNull();
+        assertThat(failed.getAttempts()).isEqualTo(1);
+        assertThat(failed.getLastError()).contains("TimeoutException");
+        assertThat(reload(next).getAttempts()).as("jamais tenté avant le précédent").isZero();
     }
 
     @Test
@@ -122,8 +122,8 @@ class OutboxRelayTest {
 
         assertThat(relay.relayPending()).as("A s'arrête : B a pris le relais").isEqualTo(1);
         assertThat(kafka.sentSellerIds).containsExactly("seller-1");
-        assertThat(reload(first).publishedAt()).isNotNull();
-        assertThat(reload(second).attempts()).as("laissé à B, jamais envoyé par A").isZero();
+        assertThat(reload(first).getPublishedAt()).isNotNull();
+        assertThat(reload(second).getAttempts()).as("laissé à B, jamais envoyé par A").isZero();
     }
 
     @Test
@@ -151,7 +151,7 @@ class OutboxRelayTest {
     }
 
     private OutboxMessage reload(OutboxMessage message) {
-        return mongoTemplate.findOne(Query.query(where("_id").is(message.id())), OutboxMessage.class);
+        return mongoTemplate.findOne(Query.query(where("_id").is(message.getId())), OutboxMessage.class);
     }
 
     /** Kafka simulé qui peut tomber en panne après un certain nombre d'envois, ou ne jamais répondre. */

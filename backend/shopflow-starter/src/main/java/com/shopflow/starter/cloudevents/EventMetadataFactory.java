@@ -24,7 +24,7 @@ public class EventMetadataFactory {
     public EventMetadata create(String subject, SpecificRecord message) {
         Optional<EventMetadata> cause = MessageContext.current();
         String correlationId = Correlation.current()
-                .or(() -> cause.map(EventMetadata::correlationId))
+                .or(() -> cause.map(EventMetadata::getCorrelationId))
                 .orElseGet(Correlation::newId);
         return new EventMetadata(
                 UuidV7.generate().toString(),
@@ -33,6 +33,6 @@ public class EventMetadataFactory {
                 subject,
                 clock.instant(),
                 correlationId,
-                cause.map(EventMetadata::id).orElse(null));
+                cause.map(EventMetadata::getId).orElse(null));
     }
 }
