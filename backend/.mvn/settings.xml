@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Réglages Maven propres à ShopFlow, imposés par .mvn/maven.config à la place du ~/.m2/settings.xml de la machine :
+  les dépendances viennent uniquement des dépôts publics (Maven Central, et Confluent déclaré dans le pom.xml),
+  jamais d'un dépôt privé configuré globalement (miroir ou profil d'entreprise).
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+</settings>
