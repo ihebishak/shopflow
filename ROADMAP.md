@@ -86,7 +86,7 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 - ✅ 3.3a Cas d'usage « créer un produit » + enregistrement dans MongoDB (port `ProductRepository`, adaptateur Mongo)
 - ✅ 3.3b API REST créer + consulter un produit + fichier `.http`
 - ✅ 3.3c Outillage : Lombok + MapStruct configurés, conventions « Code Java » écrites
-- ⬜ 3.3d Starter et shared-kernel : `record` → classes Lombok
+- ✅ 3.3d Starter et shared-kernel : `record` → classes Lombok
 - ⬜ 3.3e catalog-service réorganisé : `api`/`spi`, DTO `…RequestDto`/`…ResponseDto`, mappers MapStruct, Bean Validation, tests GIVEN/WHEN/THEN + `@WebMvcTest`
 - ⬜ 3.3f Swagger (springdoc-openapi) : page Swagger UI, interfaces `…ControllerDocumentation`
 - ⬜ 3.4 Erreurs Problem Details (RFC 9457) : 404 produit introuvable, 400 champ invalide

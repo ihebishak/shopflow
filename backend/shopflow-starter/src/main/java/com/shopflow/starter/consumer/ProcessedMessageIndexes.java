@@ -21,6 +21,6 @@ class ProcessedMessageIndexes implements InitializingBean {
     @Override
     public void afterPropertiesSet() {
         mongoTemplate.indexOps(ProcessedMessage.COLLECTION).ensureIndex(new Index()
-                .on("processedAt", Sort.Direction.ASC).expire(properties.processedRetention()).named("processed_ttl"));
+                .on("processedAt", Sort.Direction.ASC).expire(properties.getProcessedRetention()).named("processed_ttl"));
     }
 }

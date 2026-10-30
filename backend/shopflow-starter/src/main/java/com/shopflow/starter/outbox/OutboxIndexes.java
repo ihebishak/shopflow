@@ -27,6 +27,6 @@ class OutboxIndexes implements InitializingBean {
                 .named("pending_in_order"));
         // Un index TTL ignore les documents sans date : les messages non publiés ne sont jamais supprimés
         indexes.ensureIndex(new Index().on("publishedAt", Sort.Direction.ASC)
-                .expire(properties.retention()).named("published_ttl"));
+                .expire(properties.getRetention()).named("published_ttl"));
     }
 }

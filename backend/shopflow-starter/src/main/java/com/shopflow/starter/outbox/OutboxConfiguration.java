@@ -36,14 +36,14 @@ public class OutboxConfiguration {
     static void checkTimeouts(OutboxProperties properties, Map<String, Object> producerConfig) {
         Duration maxBlock = kafkaDuration(producerConfig, ProducerConfig.MAX_BLOCK_MS_CONFIG, 60_000);
         Duration deliveryTimeout = kafkaDuration(producerConfig, ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120_000);
-        if (properties.sendTimeout().compareTo(deliveryTimeout) <= 0) {
-            throw new IllegalStateException("shopflow.outbox.send-timeout (" + properties.sendTimeout()
+        if (properties.getSendTimeout().compareTo(deliveryTimeout) <= 0) {
+            throw new IllegalStateException("shopflow.outbox.send-timeout (" + properties.getSendTimeout()
                     + ") must exceed the Kafka producer delivery.timeout.ms (" + deliveryTimeout
                     + "): a message the relay gave up on could still be delivered later");
         }
-        Duration longestSend = maxBlock.plus(properties.sendTimeout());
-        if (properties.lockLease().compareTo(longestSend) <= 0) {
-            throw new IllegalStateException("shopflow.outbox.lock-lease (" + properties.lockLease()
+        Duration longestSend = maxBlock.plus(properties.getSendTimeout());
+        if (properties.getLockLease().compareTo(longestSend) <= 0) {
+            throw new IllegalStateException("shopflow.outbox.lock-lease (" + properties.getLockLease()
                     + ") must exceed max.block.ms + send-timeout (" + longestSend
                     + "): a stuck relay could lose its lock while still publishing");
         }

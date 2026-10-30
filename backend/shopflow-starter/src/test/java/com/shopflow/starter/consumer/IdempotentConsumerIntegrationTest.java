@@ -97,17 +97,17 @@ class IdempotentConsumerIntegrationTest {
 
         assertThat(listener.calls("dup-1")).as("le doublon n'atteint pas le consommateur").isEqualTo(1);
         assertThat(reservations("dup-1")).isEqualTo(1);
-        ProcessedMessage marker = mongoTemplate.findById(metadata.id(), ProcessedMessage.class);
+        ProcessedMessage marker = mongoTemplate.findById(metadata.getId(), ProcessedMessage.class);
         assertThat(marker).isNotNull();
-        assertThat(marker.type()).isEqualTo("shopflow.product.ProductPublished.v1");
-        assertThat(marker.topic()).isEqualTo(IN);
+        assertThat(marker.getType()).isEqualTo("shopflow.product.ProductPublished.v1");
+        assertThat(marker.getTopic()).isEqualTo(IN);
     }
 
     @Test
     void a_failed_attempt_leaves_nothing_behind_and_the_retry_processes_the_message() throws Exception {
         EventMetadata metadata = send(published("flaky-1"));
 
-        await(() -> mongoTemplate.findById(metadata.id(), ProcessedMessage.class) != null);
+        await(() -> mongoTemplate.findById(metadata.getId(), ProcessedMessage.class) != null);
 
         assertThat(listener.calls("flaky-1")).as("échec puis réussite").isEqualTo(2);
         assertThat(reservations("flaky-1")).as("la réservation du 1er essai est annulée").isEqualTo(1);
@@ -121,8 +121,8 @@ class IdempotentConsumerIntegrationTest {
         ConsumerRecord<String, Object> reaction = listener.reactions.poll(30, TimeUnit.SECONDS);
         assertThat(reaction).isNotNull();
         assertThat(reaction.key()).isEqualTo("outbox-ok-1");
-        assertThat(EventMetadata.fromHeaders(reaction.headers()).orElseThrow().causationId())
-                .as("provoqué par le message reçu").isEqualTo(ok.id());
+        assertThat(EventMetadata.fromHeaders(reaction.headers()).orElseThrow().getCausationId())
+                .as("provoqué par le message reçu").isEqualTo(ok.getId());
 
         DeadLetters.await(brokers, DLT, "outbox-fail-1");
         assertThat(reservations("outbox-fail-1")).isZero();
@@ -141,7 +141,7 @@ class IdempotentConsumerIntegrationTest {
         assertThat(listener.calls("concurrent-1")).as("essai annulé (conflit), puis réessai reconnu comme doublon")
                 .isEqualTo(1);
         assertThat(reservations("concurrent-1")).as("la réservation de cette instance est annulée").isZero();
-        assertThat(mongoTemplate.findById(metadata.id(), Document.class, ProcessedMessage.COLLECTION))
+        assertThat(mongoTemplate.findById(metadata.getId(), Document.class, ProcessedMessage.COLLECTION))
                 .containsEntry("by", "other-instance");
     }
 
@@ -219,7 +219,7 @@ class IdempotentConsumerIntegrationTest {
             }
             if (productId.startsWith("concurrent") && call == 1) {
                 // Une autre instance valide le même message pendant ce traitement (hors de notre transaction)
-                String id = MessageContext.current().orElseThrow().id();
+                String id = MessageContext.current().orElseThrow().getId();
                 CompletableFuture.runAsync(() -> mongoTemplate.insert(
                         new Document("_id", id).append("by", "other-instance"), ProcessedMessage.COLLECTION)).join();
             }

@@ -1,19 +1,30 @@
 package com.shopflow.kernel.money;
 
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+
 import java.util.Currency;
 import java.util.Objects;
 
 /**
- * Montant d'argent exprimé en unités mineures (centimes pour l'euro).
+ * Montant d'argent exprimé en unités mineures (centimes pour l'euro). Immuable et comparé par valeur.
  * <p>
  * Jamais de {@code double} pour de l'argent : tous les calculs se font sur des entiers.
  */
-public record Money(long amount, Currency currency) implements Comparable<Money> {
+@Getter
+@EqualsAndHashCode
+public final class Money implements Comparable<Money> {
 
     private static final long BASIS_POINTS_PER_UNIT = 10_000;
 
-    public Money {
-        Objects.requireNonNull(currency, "currency");
+    /** Montant en unités mineures (ex. 16000 = 160,00 €). */
+    private final long amount;
+
+    private final Currency currency;
+
+    public Money(long amount, Currency currency) {
+        this.amount = amount;
+        this.currency = Objects.requireNonNull(currency, "currency");
     }
 
     public static Money of(long amount, String currencyCode) {

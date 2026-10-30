@@ -36,8 +36,8 @@ class EventMetadataTest {
 
     @Test
     void omits_causation_header_for_an_initial_message() {
-        EventMetadata initial = new EventMetadata(metadata.id(), metadata.type(), metadata.source(),
-                metadata.subject(), metadata.time(), metadata.correlationId(), null);
+        EventMetadata initial = new EventMetadata(metadata.getId(), metadata.getType(), metadata.getSource(),
+                metadata.getSubject(), metadata.getTime(), metadata.getCorrelationId(), null);
 
         assertThat(initial.toHeaders().lastHeader(CloudEventHeaders.CAUSATION_ID)).isNull();
         assertThat(EventMetadata.fromHeaders(initial.toHeaders())).contains(initial);

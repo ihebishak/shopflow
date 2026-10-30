@@ -79,10 +79,10 @@ class OutboxIntegrationTest {
         assertThat(record.key()).isEqualTo("product-1");
         assertThat(record.value()).isEqualTo(published("seller-1"));
         EventMetadata metadata = EventMetadata.fromHeaders(record.headers()).orElseThrow();
-        assertThat(metadata.type()).isEqualTo("shopflow.product.ProductPublished.v1");
-        assertThat(metadata.source()).isEqualTo("/catalog-service");
+        assertThat(metadata.getType()).isEqualTo("shopflow.product.ProductPublished.v1");
+        assertThat(metadata.getSource()).isEqualTo("/catalog-service");
 
-        Document stored = waitUntilPublished(metadata.id());
+        Document stored = waitUntilPublished(metadata.getId());
         assertThat(stored.getString("payload")).as("lisible dans Mongo Express")
                 .isEqualTo("{\"productId\":\"product-1\",\"sellerId\":\"seller-1\"}");
     }

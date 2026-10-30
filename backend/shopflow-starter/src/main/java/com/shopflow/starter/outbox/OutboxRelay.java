@@ -52,7 +52,7 @@ public class OutboxRelay implements SmartLifecycle {
     public OutboxRelay(MongoTemplate mongoTemplate, KafkaTemplate<?, ?> kafkaTemplate,
                        OutboxProperties properties, Clock clock) {
         this(mongoTemplate, kafkaTemplate, properties, clock,
-                new OutboxLock(mongoTemplate, UuidV7.generate().toString(), properties.lockLease(), clock));
+                new OutboxLock(mongoTemplate, UuidV7.generate().toString(), properties.getLockLease(), clock));
     }
 
     @SuppressWarnings("unchecked")
@@ -90,7 +90,7 @@ public class OutboxRelay implements SmartLifecycle {
         try {
             while (lock.tryAcquire()) {
                 List<OutboxMessage> batch = mongoTemplate.find(Query.query(where("publishedAt").is(null))
-                        .with(Sort.by("_id")).limit(properties.batchSize()), OutboxMessage.class);
+                        .with(Sort.by("_id")).limit(properties.getBatchSize()), OutboxMessage.class);
                 if (batch.isEmpty()) {
                     return published;
                 }
@@ -110,11 +110,11 @@ public class OutboxRelay implements SmartLifecycle {
 
     private boolean publish(OutboxMessage message) {
         try {
-            SpecificRecord payload = AvroJsonCodec.decode(message.payload(), message.messageType());
-            kafkaTemplate.send(new ProducerRecord<>(message.topic(), null, message.key(), payload,
-                            message.metadata().toHeaders()))
-                    .get(properties.sendTimeout().toMillis(), TimeUnit.MILLISECONDS);
-            mongoTemplate.updateFirst(Query.query(where("_id").is(message.id())),
+            SpecificRecord payload = AvroJsonCodec.decode(message.getPayload(), message.getMessageType());
+            kafkaTemplate.send(new ProducerRecord<>(message.getTopic(), null, message.getKey(), payload,
+                            message.getMetadata().toHeaders()))
+                    .get(properties.getSendTimeout().toMillis(), TimeUnit.MILLISECONDS);
+            mongoTemplate.updateFirst(Query.query(where("_id").is(message.getId())),
                     new Update().set("publishedAt", clock.instant()).inc("attempts", 1).unset("lastError"),
                     OutboxMessage.class);
             return true;
@@ -131,9 +131,9 @@ public class OutboxRelay implements SmartLifecycle {
     private void recordFailure(OutboxMessage message, Exception error) {
         Throwable cause = error instanceof ExecutionException && error.getCause() != null ? error.getCause() : error;
         String description = cause.getClass().getSimpleName() + ": " + cause.getMessage();
-        log.warn("Outbox: publication of {} ({}) failed, will retry: {}", message.id(), message.metadata().type(),
+        log.warn("Outbox: publication of {} ({}) failed, will retry: {}", message.getId(), message.getMetadata().getType(),
                 description);
-        mongoTemplate.updateFirst(Query.query(where("_id").is(message.id())),
+        mongoTemplate.updateFirst(Query.query(where("_id").is(message.getId())),
                 new Update().inc("attempts", 1).set("lastError",
                         description.length() > MAX_ERROR_LENGTH ? description.substring(0, MAX_ERROR_LENGTH) : description),
                 OutboxMessage.class);
@@ -154,7 +154,7 @@ public class OutboxRelay implements SmartLifecycle {
             thread.setDaemon(true);
             return thread;
         });
-        long interval = properties.pollInterval().toMillis();
+        long interval = properties.getPollInterval().toMillis();
         executor.scheduleWithFixedDelay(this::relaySafely, interval, interval, TimeUnit.MILLISECONDS);
         scheduler = executor;
     }
@@ -166,7 +166,7 @@ public class OutboxRelay implements SmartLifecycle {
         if (executor != null) {
             executor.shutdown();
             try {
-                executor.awaitTermination(properties.sendTimeout().toMillis(), TimeUnit.MILLISECONDS);
+                executor.awaitTermination(properties.getSendTimeout().toMillis(), TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }

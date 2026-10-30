@@ -66,18 +66,18 @@ class CloudEventsPropagationTest {
         EventMetadata first = EventMetadata.fromHeaders(created.headers()).orElseThrow();
         EventMetadata second = EventMetadata.fromHeaders(published.headers()).orElseThrow();
 
-        assertThat(first.type()).isEqualTo("shopflow.product.ProductCreated.v1");
-        assertThat(first.source()).isEqualTo("/catalog-service");
-        assertThat(first.subject()).isEqualTo("product-1").isEqualTo(created.key());
-        assertThat(first.correlationId()).isEqualTo("corr-journey-42");
-        assertThat(first.causationId()).isNull();
+        assertThat(first.getType()).isEqualTo("shopflow.product.ProductCreated.v1");
+        assertThat(first.getSource()).isEqualTo("/catalog-service");
+        assertThat(first.getSubject()).isEqualTo("product-1").isEqualTo(created.key());
+        assertThat(first.getCorrelationId()).isEqualTo("corr-journey-42");
+        assertThat(first.getCausationId()).isNull();
 
         assertThat(listener.correlationInLogs).as("corrélation visible dans les logs du consommateur")
                 .isEqualTo("corr-journey-42");
 
-        assertThat(second.type()).isEqualTo("shopflow.product.ProductPublished.v1");
-        assertThat(second.correlationId()).as("même parcours").isEqualTo("corr-journey-42");
-        assertThat(second.causationId()).as("provoqué par ProductCreated").isEqualTo(first.id());
+        assertThat(second.getType()).isEqualTo("shopflow.product.ProductPublished.v1");
+        assertThat(second.getCorrelationId()).as("même parcours").isEqualTo("corr-journey-42");
+        assertThat(second.getCausationId()).as("provoqué par ProductCreated").isEqualTo(first.getId());
         assertThat(published.value()).isInstanceOf(ProductPublished.class);
     }
 

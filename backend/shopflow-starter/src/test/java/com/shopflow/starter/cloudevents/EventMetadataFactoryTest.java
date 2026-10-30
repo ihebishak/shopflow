@@ -32,18 +32,18 @@ class EventMetadataFactoryTest {
     void fills_the_envelope_from_the_message_and_the_application() {
         EventMetadata metadata = factory.create("product-1", event);
 
-        assertThat(UUID.fromString(metadata.id()).version()).isEqualTo(7);
-        assertThat(metadata.type()).isEqualTo("shopflow.product.ProductPublished.v1");
-        assertThat(metadata.source()).isEqualTo("/catalog-service");
-        assertThat(metadata.subject()).isEqualTo("product-1");
-        assertThat(metadata.time()).isEqualTo(NOW);
+        assertThat(UUID.fromString(metadata.getId()).version()).isEqualTo(7);
+        assertThat(metadata.getType()).isEqualTo("shopflow.product.ProductPublished.v1");
+        assertThat(metadata.getSource()).isEqualTo("/catalog-service");
+        assertThat(metadata.getSubject()).isEqualTo("product-1");
+        assertThat(metadata.getTime()).isEqualTo(NOW);
     }
 
     @Test
     void reuses_the_correlation_id_of_the_current_request() {
         Correlation.set("corr-from-http");
 
-        assertThat(factory.create("product-1", event).correlationId()).isEqualTo("corr-from-http");
+        assertThat(factory.create("product-1", event).getCorrelationId()).isEqualTo("corr-from-http");
     }
 
     @Test
@@ -54,15 +54,15 @@ class EventMetadataFactoryTest {
 
         EventMetadata metadata = factory.create("product-1", event);
 
-        assertThat(metadata.correlationId()).isEqualTo("corr-from-kafka");
-        assertThat(metadata.causationId()).isEqualTo("incoming-id");
+        assertThat(metadata.getCorrelationId()).isEqualTo("corr-from-kafka");
+        assertThat(metadata.getCausationId()).isEqualTo("incoming-id");
     }
 
     @Test
     void starts_a_new_journey_when_there_is_no_context() {
         EventMetadata metadata = factory.create("product-1", event);
 
-        assertThat(metadata.correlationId()).isNotBlank();
-        assertThat(metadata.causationId()).isNull();
+        assertThat(metadata.getCorrelationId()).isNotBlank();
+        assertThat(metadata.getCausationId()).isNull();
     }
 }

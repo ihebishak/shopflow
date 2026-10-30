@@ -17,7 +17,7 @@ public class CloudEventRecordInterceptor implements RecordInterceptor<Object, Ob
         EventMetadata.fromHeaders(record.headers()).ifPresentOrElse(
                 metadata -> {
                     MessageContext.set(metadata);
-                    Correlation.set(metadata.correlationId());
+                    Correlation.set(metadata.getCorrelationId());
                 },
                 () -> Correlation.set(Correlation.newId()));
         return record;

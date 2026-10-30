@@ -58,9 +58,9 @@ class ConsumerErrorHandling implements DisposableBean {
         // Partition -1 : Kafka la choisit d'après la clé, les messages d'une même entité restent dans l'ordre
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(templates,
                 (record, exception) -> new TopicPartition(deadLetterTopic(record.topic(), applicationName), -1));
-        ExponentialBackOffWithMaxRetries backOff = new ExponentialBackOffWithMaxRetries(properties.retries());
-        backOff.setInitialInterval(properties.initialInterval().toMillis());
-        backOff.setMultiplier(properties.multiplier());
+        ExponentialBackOffWithMaxRetries backOff = new ExponentialBackOffWithMaxRetries(properties.getRetries());
+        backOff.setInitialInterval(properties.getInitialInterval().toMillis());
+        backOff.setMultiplier(properties.getMultiplier());
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, backOff);
         errorHandler.setRetryListeners(new RetryListener() {
 

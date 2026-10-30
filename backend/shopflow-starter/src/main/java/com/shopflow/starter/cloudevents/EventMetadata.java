@@ -1,31 +1,50 @@
 package com.shopflow.starter.cloudevents;
 
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.ToString;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Objects;
 import java.util.Optional;
 
 import static com.shopflow.starter.cloudevents.CloudEventHeaders.*;
 
 /**
  * Métadonnées CloudEvents d'un message Kafka. Le contenu métier (Avro) reste dans la valeur du message.
- *
- * @param causationId {@code ce_id} du message qui a provoqué celui-ci, {@code null} pour un message initial
+ * Comparées par valeur ; {@code @NonNull} refuse les champs obligatoires absents dès la construction.
  */
-public record EventMetadata(String id, String type, String source, String subject, Instant time,
-                            String correlationId, String causationId) {
+@Getter
+@EqualsAndHashCode
+@ToString
+@AllArgsConstructor
+public final class EventMetadata {
 
-    public EventMetadata {
-        Objects.requireNonNull(id, "id");
-        Objects.requireNonNull(type, "type");
-        Objects.requireNonNull(source, "source");
-        Objects.requireNonNull(time, "time");
-        Objects.requireNonNull(correlationId, "correlationId");
-    }
+    @NonNull
+    private final String id;
+
+    @NonNull
+    private final String type;
+
+    @NonNull
+    private final String source;
+
+    /** Identifiant de l'entité concernée (= clé du message Kafka). */
+    private final String subject;
+
+    @NonNull
+    private final Instant time;
+
+    @NonNull
+    private final String correlationId;
+
+    /** {@code ce_id} du message qui a provoqué celui-ci, {@code null} pour un message initial. */
+    private final String causationId;
 
     public Headers toHeaders() {
         RecordHeaders headers = new RecordHeaders();

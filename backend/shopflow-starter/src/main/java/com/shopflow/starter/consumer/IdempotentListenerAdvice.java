@@ -53,18 +53,18 @@ public class IdempotentListenerAdvice implements MethodInterceptor {
         }
         return transaction.execute(status -> {
             if (metadata.isPresent() && alreadyProcessed(metadata.get())) {
-                log.info("Duplicate message {} ({}) ignored", metadata.get().id(), metadata.get().type());
+                log.info("Duplicate message {} ({}) ignored", metadata.get().getId(), metadata.get().getType());
                 return null;
             }
             Object result = proceed(invocation);
-            metadata.ifPresent(m -> mongoTemplate.insert(new ProcessedMessage(m.id(), m.type(), record.topic(),
+            metadata.ifPresent(m -> mongoTemplate.insert(new ProcessedMessage(m.getId(), m.getType(), record.topic(),
                     record.partition(), record.offset(), clock.instant())));
             return result;
         });
     }
 
     private boolean alreadyProcessed(EventMetadata metadata) {
-        return mongoTemplate.exists(query(where("_id").is(metadata.id())), ProcessedMessage.class);
+        return mongoTemplate.exists(query(where("_id").is(metadata.getId())), ProcessedMessage.class);
     }
 
     /** Le message reçu, si l'appel est la réception d'un message (et non une autre méthode du listener). */
