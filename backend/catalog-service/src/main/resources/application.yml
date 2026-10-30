@@ -1,0 +1,15 @@
+# Kafka, Avro, Schema Registry, outbox, idempotence, DLT : valeurs par défaut du shopflow-starter
+spring:
+  application:
+    name: catalog-service
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/catalog?directConnection=true
+
+server:
+  port: 8101
+
+management:
+  endpoint:
+    health:
+      show-components: always
