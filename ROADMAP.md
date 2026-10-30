@@ -82,7 +82,7 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 *Étapes courtes : chacune donne un résultat visible. En attendant Keycloak (phase 2), le vendeur est identifié par l'en-tête `X-Seller-Id`.*
 
 - ✅ 3.1 Squelette du `catalog-service` : démarre, se connecte à MongoDB et Kafka, socle du starter actif (`/actuator/health`)
-- ⬜ 3.2 Domaine Produit en Java pur : brouillon et règles de base (tests unitaires)
+- ✅ 3.2 Domaine Produit en Java pur : brouillon et règles de base (tests unitaires)
 - ⬜ 3.3 API créer + consulter un produit (MongoDB) + fichier `.http`
 - ⬜ 3.4 Erreurs Problem Details (RFC 9457) : 404 produit introuvable, 400 champ invalide
 - ⬜ 3.5 Événement `ProductCreated` publié via l'outbox (visible dans Kafka UI)
