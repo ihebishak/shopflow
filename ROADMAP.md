@@ -61,9 +61,9 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 - ✅ 1.5 Module `shopflow-starter` : enveloppe CloudEvents (headers Kafka), propagation du `correlationId` (HTTP, Kafka, logs), UUID v7 ; MongoDB en replica set (prérequis de l'outbox)
 - ✅ 1.6a `shopflow-starter` : configuration Kafka/Avro par défaut + **outbox** (transaction MongoDB, relais réveillé après commit, un seul relais actif, ordre garanti)
 - ✅ 1.6b `shopflow-starter` : consommateurs idempotents (transaction MongoDB automatique autour de chaque `@KafkaListener`) + réessais sur place puis DLT par service
-- ⬜ 1.6c `shopflow-starter` : erreurs Problem Details (RFC 9457) + règles ArchUnit de l'architecture hexagonale
-- ⬜ 1.7 Ajout de Redis, Keycloak et Mailpit (serveur mail de test) dans le compose
-- ⬜ 1.8 Ajout de Camunda 8 (Zeebe, Operate, Tasklist, Elasticsearch) dans le compose + premier processus « hello world »
+- ↪️ 1.6c erreurs Problem Details + règles ArchUnit : réalisées **dans le catalog-service** (3.4 et 3.6), sur du vrai code
+- ↪️ 1.7 Redis, Keycloak, Mailpit : ajoutés au compose **au moment où un service en a besoin** (cache du catalogue, phase 2, notifications)
+- ↪️ 1.8 Camunda 8 : ajouté avec le premier processus métier (onboarding vendeur ou saga de commande)
 
 **Livrable :** `docker compose up -d` démarre toute l'infra, et le starter est réutilisable par tous les services.
 
@@ -79,14 +79,24 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 **Livrable :** on se connecte et chaque rôle voit son espace.
 
 ## Phase 3 — Catalogue & recherche
-- ⬜ 3.1 `catalog-service` : CRUD produits par vendeur (brouillon → publié → dépublié), catégories arborescentes
-- ⬜ 3.2 Variantes (pointure/taille × coloris) avec SKU propres
-- ⬜ 3.3 Images produits (stockage MinIO, compatible S3)
-- ⬜ 3.4 Recherche full-text + filtres à facettes + tri + pagination
-- ⬜ 3.5 Cache Redis des produits populaires et invalidation par événement
-- ⬜ 3.6 Événements `ProductCreated`, `ProductVariantAdded`, `ProductUpdated`, `ProductPriceChanged`, `ProductPublished`, `ProductUnpublished`
-- ⬜ 3.7 Signalement d'un produit par les clients + dépublication par l'admin (`ProductReported`)
-- ⬜ 3.8 🖥️ Page catalogue, recherche à facettes, fiche produit, gestion produits côté vendeur
+*Étapes courtes : chacune donne un résultat visible. En attendant Keycloak (phase 2), le vendeur est identifié par l'en-tête `X-Seller-Id`.*
+
+- ✅ 3.1 Squelette du `catalog-service` : démarre, se connecte à MongoDB et Kafka, socle du starter actif (`/actuator/health`)
+- ⬜ 3.2 Domaine Produit en Java pur : brouillon et règles de base (tests unitaires)
+- ⬜ 3.3 API créer + consulter un produit (MongoDB) + fichier `.http`
+- ⬜ 3.4 Erreurs Problem Details (RFC 9457) : 404 produit introuvable, 400 champ invalide
+- ⬜ 3.5 Événement `ProductCreated` publié via l'outbox (visible dans Kafka UI)
+- ⬜ 3.6 Règles ArchUnit de l'architecture hexagonale
+- ⬜ 3.7 Variantes (pointure × coloris, SKU, prix) + `ProductVariantAdded`
+- ⬜ 3.8 Modifier un produit, changer un prix (`ProductUpdated`, `ProductPriceChanged`)
+- ⬜ 3.9 Publier / dépublier (`ProductPublished`, `ProductUnpublished`), pas de publication sans variante
+- ⬜ 3.10 Lister ses produits (pagination, filtre par statut)
+- ⬜ 3.11 Catégories arborescentes
+- ⬜ 3.12 Images produits (stockage MinIO, compatible S3)
+- ⬜ 3.13 Recherche full-text + filtres à facettes + tri + pagination
+- ⬜ 3.14 Cache Redis des produits populaires et invalidation par événement
+- ⬜ 3.15 Signalement d'un produit par les clients + dépublication par l'admin (`ProductReported`)
+- ⬜ 3.16 🖥️ Page catalogue, recherche à facettes, fiche produit, gestion produits côté vendeur
 
 **Livrable :** un vendeur publie un produit, un client le trouve via la recherche.
 
@@ -103,8 +113,8 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 - ⬜ 5.1 `cart-service` (Redis) : panier invité, fusion à la connexion, expiration
 - ⬜ 5.2 `order-service` : création de commande, découpage en sous-commandes par vendeur
 - ⬜ 5.3 Processus BPMN `order-fulfillment` (Camunda) : workers qui publient les commandes Kafka, corrélation des événements de réponse, timers, compensations
-- ⬜ 5.4 **Transactional Outbox** : aucun événement perdu entre MongoDB et Kafka
-- ⬜ 5.5 Retry topics + Dead Letter Topic, consommateurs idempotents
+- ✅ 5.4 **Transactional Outbox** : aucun événement perdu entre MongoDB et Kafka *(fait en 1.6a, dans le starter)*
+- ✅ 5.5 Réessais sur place + Dead Letter Topic, consommateurs idempotents *(fait en 1.6b, dans le starter)*
 - ⬜ 5.6 `payment-service` : Stripe Payment Element en mode test + réception des webhooks (paiement asynchrone)
 - ⬜ 5.7 Annulation et remboursement Stripe (transactions de compensation)
 - ⬜ 5.8 `shipping-service` : remise au transporteur, étiquette PDF avec code-barres, transporteur simulé à vitesse configurable (démo / réaliste), ≈ 10 % de retards
