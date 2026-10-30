@@ -1,0 +1,37 @@
+# Requêtes à lancer depuis IntelliJ (bouton ▶ à gauche de chaque requête), service démarré sur le port 8101.
+# Le vendeur est identifié par l'en-tête X-Seller-Id, en attendant Keycloak (phase 2).
+
+### Créer une Air Max (naît en brouillon)
+POST http://localhost:8101/api/v1/seller/products
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": "Air Max 90 Infrared",
+  "brand": "Nike",
+  "category": "sneakers",
+  "description": "La réédition du modèle de 1990"
+}
+
+> {%
+    client.global.set("productId", response.body.id);
+%}
+
+### Consulter le produit créé (200)
+GET http://localhost:8101/api/v1/seller/products/{{productId}}
+X-Seller-Id: seller-karim
+
+### Un autre vendeur ne le voit pas (404)
+GET http://localhost:8101/api/v1/seller/products/{{productId}}
+X-Seller-Id: seller-lea
+
+### Produit invalide, nom vide (500 pour l'instant : deviendra un 400 clair à l'étape 3.4)
+POST http://localhost:8101/api/v1/seller/products
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": " ",
+  "brand": "Nike",
+  "category": "sneakers"
+}
