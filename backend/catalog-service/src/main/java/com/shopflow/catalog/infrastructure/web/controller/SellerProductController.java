@@ -1,10 +1,16 @@
-package com.shopflow.catalog.infrastructure.web;
+package com.shopflow.catalog.infrastructure.web.controller;
 
 import com.shopflow.catalog.application.api.CreateProductUseCase;
 import com.shopflow.catalog.application.api.FindSellerProductUseCase;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
+import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
+import com.shopflow.catalog.infrastructure.web.mapper.ProductRestMapper;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,41 +25,38 @@ import java.net.URI;
 import java.util.UUID;
 
 /**
- * API des produits côté vendeur.
+ * API des produits côté vendeur : convertit (mapper) et délègue aux cas d'usage, sans logique métier.
  * <p>
  * Le vendeur est identifié par l'en-tête {@code X-Seller-Id}, en attendant Keycloak (phase 2).
  */
 @RestController
 @RequestMapping("/api/v1/seller/products")
-class SellerProductController {
+@RequiredArgsConstructor
+public class SellerProductController {
 
-    static final String SELLER_HEADER = "X-Seller-Id";
+    public static final String SELLER_HEADER = "X-Seller-Id";
 
     private final CreateProductUseCase createProductUseCase;
     private final FindSellerProductUseCase findSellerProductUseCase;
-
-    SellerProductController(CreateProductUseCase createProductUseCase,
-                            FindSellerProductUseCase findSellerProductUseCase) {
-        this.createProductUseCase = createProductUseCase;
-        this.findSellerProductUseCase = findSellerProductUseCase;
-    }
+    private final ProductRestMapper productRestMapper;
 
     /** Crée un brouillon : 201 Created, avec l'adresse du produit dans l'en-tête {@code Location}. */
-    @PostMapping
-    ResponseEntity<ProductResponse> create(@RequestHeader(SELLER_HEADER) String sellerId,
-                                           @RequestBody CreateProductRequest request) {
-        Product product = createProductUseCase.createProduct(request.toCommand(new SellerId(sellerId)));
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ProductResponseDto> createProduct(@RequestHeader(SELLER_HEADER) final String sellerId,
+                                                            @Valid @RequestBody final CreateProductRequestDto requestDto) {
+        Product product = createProductUseCase.createProduct(
+                productRestMapper.toCommand(requestDto, new SellerId(sellerId)));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{productId}").buildAndExpand(product.getId()).toUri();
-        return ResponseEntity.created(location).body(ProductResponse.from(product));
+        return ResponseEntity.created(location).body(productRestMapper.toResponseDto(product));
     }
 
     /** Un des produits du vendeur : 200, ou 404 s'il n'existe pas ou appartient à un autre vendeur. */
-    @GetMapping("/{productId}")
-    ResponseEntity<ProductResponse> get(@RequestHeader(SELLER_HEADER) String sellerId,
-                                        @PathVariable UUID productId) {
+    @GetMapping(value = "/{productId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ProductResponseDto> getProduct(@RequestHeader(SELLER_HEADER) final String sellerId,
+                                                         @PathVariable final UUID productId) {
         return findSellerProductUseCase.findSellerProduct(new SellerId(sellerId), new ProductId(productId))
-                .map(ProductResponse::from)
+                .map(productRestMapper::toResponseDto)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
