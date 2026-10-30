@@ -36,6 +36,14 @@ class ProductTest {
     }
 
     @Test
+    void keeps_the_creation_date_to_the_millisecond_like_mongodb() {
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", null,
+                Instant.parse("2026-10-31T10:00:00.123456789Z"));
+
+        assertThat(product.createdAt()).isEqualTo(Instant.parse("2026-10-31T10:00:00.123Z"));
+    }
+
+    @Test
     void gives_each_product_its_own_id() {
         Product first = draft("Air Max 90");
         Product second = draft("Air Max 90");
