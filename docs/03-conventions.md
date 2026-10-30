@@ -173,11 +173,49 @@ Toutes les erreurs de tous les services ont la même forme (`application/problem
 
 ```
 com.shopflow.<service>
-├── domain          modèle et règles métier — Java pur, sans Spring, Kafka, MongoDB ni Camunda
-├── application     cas d'usage (« passer une commande »…) et ports (interfaces)
-└── infrastructure  adaptateurs : web (REST), kafka, mongo, camunda, axon, stripe…
+├── domain                 modèle et règles métier — Java pur, sans Spring, Kafka, MongoDB ni Camunda
+├── application
+│   ├── api                ports d'entrée : ce que le service offre (CreateProductUseCase) + commandes
+│   ├── spi                ports de sortie : ce dont il a besoin (ProductRepository)
+│   └── service            implémentation des cas d'usage
+└── infrastructure         adaptateurs
+    ├── web
+    │   ├── controller     contrôleurs REST
+    │   ├── swagger        interfaces de documentation OpenAPI (…ControllerDocumentation)
+    │   ├── dto/request    corps reçus (…RequestDto)
+    │   ├── dto/response   corps renvoyés (…ResponseDto)
+    │   ├── mapper         mappers MapStruct DTO ↔ application
+    │   └── advice         @RestControllerAdvice (erreurs → Problem Details)
+    ├── mongo              documents, mappers, implémentations des ports spi
+    └── kafka, camunda, stripe…
 ```
 
 - Sens des dépendances : `infrastructure` → `application` → `domain`, **jamais l'inverse**.
+- `application` peut utiliser Spring (`@Service`, `@Transactional`), **jamais** MongoDB, Kafka ni le web.
 - Règles vérifiées automatiquement par des **tests ArchUnit** (règles partagées via le starter).
 - Camunda et Axon sont des **détails d'infrastructure** : le domaine ne les connaît pas.
+
+## 9. Code Java
+
+**Classes**
+- **Pas de `record`** : des classes, aux champs `private final` (immuables autant que possible).
+- **Lombok** pour le code répétitif :
+  - `@Getter` (accesseurs `getName()`) ; `@RequiredArgsConstructor` pour l'injection par constructeur ;
+  - `@Builder` + `@Jacksonized` pour les DTO ; `@EqualsAndHashCode` + `@ToString` pour les objets comparés par valeur (identifiants, montants) ;
+  - `@Slf4j` pour les logs ; jamais `@Data` ni `@Setter` (pas de mutation libre).
+- Le domaine garde des **constructeurs privés** et des méthodes de fabrique qui vérifient les règles (`Product.draft(...)`).
+- Injection **par constructeur** uniquement (jamais `@Autowired` sur un champ) ; paramètres de méthodes publiques en **`final`** dans les adaptateurs web.
+
+**API REST**
+- DTO suffixés **`RequestDto`** (entrée) et **`ResponseDto`** (sortie), sans logique.
+- **Bean Validation** sur les `RequestDto` (`@NotBlank`, `@Size`… avec un message) et `@Valid` dans le contrôleur ; le domaine garde ses propres règles (dernière ligne de défense).
+- Le contrôleur implémente une interface **`…ControllerDocumentation`** qui porte les annotations OpenAPI (`@Tag`, `@Operation`) : le contrôleur reste lisible.
+- `consumes` / `produces` explicites (`application/json`) ; `@ResponseStatus` pour le code de succès, `ResponseEntity` seulement quand il faut des en-têtes (ex. `Location`).
+
+**Mappers**
+- **MapStruct** (interfaces, code généré à la compilation, injectables par Spring) : `…RestMapper` (web) et `…DocumentMapper` (MongoDB).
+- `unmappedTargetPolicy = ERROR` (configuré dans le `pom.xml` parent) : un champ oublié fait échouer la compilation.
+
+**Tests**
+- `@DisplayName("SHOULD … WHEN …")` et blocs `// GIVEN`, `// WHEN`, `// THEN`.
+- Domaine et cas d'usage : tests unitaires sans Spring ; contrôleurs : `@WebMvcTest` avec des cas d'usage simulés ; adaptateurs : vrais MongoDB / Kafka (Testcontainers, Kafka embarqué).

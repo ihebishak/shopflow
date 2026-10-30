@@ -32,6 +32,9 @@
         <confluent.version>7.9.0</confluent.version>
         <!-- 1.21.3 (fournie par Spring Boot 3.5.6) ne sait pas dialoguer avec Docker Engine 29+ -->
         <testcontainers.version>1.21.4</testcontainers.version>
+        <!-- Lombok : version gérée par Spring Boot (lombok.version) -->
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
     </properties>
 
     <!-- Les sérialiseurs Avro de Confluent ne sont pas publiés sur Maven Central -->
@@ -76,13 +79,72 @@
                 <artifactId>kafka-avro-serializer</artifactId>
                 <version>${confluent.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
+    <!-- Lombok dans tous les modules : utilisé uniquement à la compilation, absent du jar livré -->
+    <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
     <build>
         <finalName>${project.artifactId}</finalName>
+        <plugins>
+            <!-- Génération de code à la compilation, dans cet ordre : Lombok (getters, constructeurs…),
+                 le pont Lombok ↔ MapStruct, puis MapStruct (mappers, qui s'appuient sur le code de Lombok) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>${lombok-mapstruct-binding.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                    <compilerArgs>
+                        <!-- Mappers injectables par Spring, et compilation refusée si un champ cible n'est pas rempli -->
+                        <arg>-Amapstruct.defaultComponentModel=spring</arg>
+                        <arg>-Amapstruct.unmappedTargetPolicy=ERROR</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+        </plugins>
         <pluginManagement>
             <plugins>
+                <!-- Lombok ne sert qu'à la compilation : le plugin Spring Boot embarquerait sinon les dépendances provided -->
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <configuration>
+                        <excludes>
+                            <exclude>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                            </exclude>
+                        </excludes>
+                    </configuration>
+                </plugin>
                 <plugin>
                     <groupId>org.apache.avro</groupId>
                     <artifactId>avro-maven-plugin</artifactId>
