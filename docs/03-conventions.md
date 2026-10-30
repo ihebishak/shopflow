@@ -9,7 +9,7 @@
 - Nommage : minuscules, séparateur `.` uniquement (jamais `_`) :
   - événements : `shopflow.<entité>.events`
   - commandes : `shopflow.<service destinataire>.commands`
-- Rejeux et erreurs : suffixes Spring Kafka par défaut, `-retry-N` et `-dlt`.
+- Messages en échec : une DLT **par service consommateur**, `<topic>.<service>.dlt` (ex. `shopflow.order.events.inventory-service.dlt`). Pas de topics de réessai : ils casseraient l'ordre (voir § 1.4).
 
 | Topic | Propriétaire | Clé | Événements |
 |---|---|---|---|
@@ -86,7 +86,13 @@ Le message contient uniquement les données métier ; les métadonnées sont dan
   - **Délais** : un envoi bloqué ne doit jamais survivre au verrou, sinon un second relais publierait en parallèle. Le verrou est renouvelé avant chaque message ; Kafka abandonne avant le relais (`delivery.timeout.ms` 10 s < `send-timeout` 15 s) ; l'envoi complet tient dans le verrou (`max.block.ms` 10 s + `send-timeout` 15 s < `lock-lease` 30 s). Vérifié au démarrage : un réglage incohérent empêche le service de démarrer.
   - MongoDB tourne en **replica set** `rs0` (un seul nœud en local). Depuis la machine hôte : `mongodb://localhost:27017/?directConnection=true` ; entre conteneurs : `mongodb://mongo:27017/?replicaSet=rs0`.
 - **Consommateurs idempotents** : chaque consommateur mémorise les `ce_id` traités et ignore les doublons (livraison « au moins une fois »).
-- **Erreurs** : rejeux automatiques sur les topics `-retry-N`, puis isolement dans `-dlt` (surveillé et alerté en phase 10).
+  - Automatique dans les services MongoDB : le starter enveloppe chaque `@KafkaListener` dans une **transaction MongoDB** (pas besoin de `@Transactional`) ; traitement, marqueur `processed_messages` et outbox : tout ou rien.
+  - Marqueurs supprimés après **7 jours** (`shopflow.consumer.processed-retention`, au moins la rétention Kafka).
+  - Limite : ne protège que les écritures MongoDB ; les effets externes (e-mail, Stripe…) ont leur propre protection (clé d'idempotence).
+- **Erreurs** : réessais **sur place** (les messages suivants attendent : l'ordre est préservé), 4 réessais après 1 s, 2 s, 4 s, 8 s (`shopflow.consumer.retries`, `initial-interval`, `multiplier`), puis mise de côté dans la DLT du service et passage au message suivant. Surveillance et alertes en phase 10.
+  - Erreurs définitives (message illisible, mauvais type) : directement en DLT, sans réessai. Un message illisible y est copié en octets bruts (`ErrorHandlingDeserializer`).
+  - Le message en DLT garde sa clé, son contenu et son enveloppe CloudEvents ; en-têtes ajoutés : `kafka_dlt-exception-message`, `kafka_dlt-original-topic`, `-partition`, `-offset`, `-consumer-group`.
+  - Schémas : le producteur de la DLT enregistre lui-même le schéma pour le topic DLT (copie d'un schéma déjà validé par la CI), seule exception à « seule la CI enregistre ».
 
 ### 1.5 Versioning
 

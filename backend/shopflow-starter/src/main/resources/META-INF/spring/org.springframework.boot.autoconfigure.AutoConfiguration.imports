@@ -1,3 +1,4 @@
 com.shopflow.starter.autoconfigure.ShopflowCloudEventsAutoConfiguration
 com.shopflow.starter.autoconfigure.ShopflowOutboxAutoConfiguration
+com.shopflow.starter.autoconfigure.ShopflowConsumerAutoConfiguration
 com.shopflow.starter.autoconfigure.ShopflowWebAutoConfiguration
