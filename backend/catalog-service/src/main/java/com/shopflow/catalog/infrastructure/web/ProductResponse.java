@@ -20,8 +20,8 @@ record ProductResponse(
         Instant createdAt) {
 
     static ProductResponse from(Product product) {
-        return new ProductResponse(product.id().toString(), product.sellerId().value(), product.name(),
-                product.brand(), product.category(), product.description().orElse(null), product.status().name(),
-                product.createdAt());
+        return new ProductResponse(product.getId().toString(), product.getSellerId().getValue(), product.getName(),
+                product.getBrand(), product.getCategory(), product.getDescription().orElse(null),
+                product.getStatus().name(), product.getCreatedAt());
     }
 }

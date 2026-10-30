@@ -1,6 +1,7 @@
 package com.shopflow.catalog.domain;
 
 import com.shopflow.kernel.id.UuidV7;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
@@ -9,7 +10,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
  * Règles d'un produit, sans Spring ni base de données : chaque test s'exécute en quelques millisecondes.
@@ -20,101 +21,153 @@ class ProductTest {
     private static final Instant NOW = Instant.parse("2026-10-31T10:00:00Z");
 
     @Test
-    void creates_a_draft_with_a_new_id_and_trimmed_fields() {
-        Product product = Product.draft(KARIM, "  Air Max 90 Infrared ", " Nike", "sneakers ",
-                "  La réédition du modèle de 1990  ", NOW);
+    @DisplayName("SHOULD create a draft with a new id and trimmed fields WHEN the product is valid")
+    void shouldCreateDraftWhenProductIsValid() {
+        // GIVEN
+        String name = "  Air Max 90 Infrared ";
+        String description = "  La réédition du modèle de 1990  ";
 
-        assertThat(product.status()).isEqualTo(ProductStatus.DRAFT);
-        assertThat(product.sellerId()).isEqualTo(KARIM);
-        assertThat(product.name()).isEqualTo("Air Max 90 Infrared");
-        assertThat(product.brand()).isEqualTo("Nike");
-        assertThat(product.category()).isEqualTo("sneakers");
-        assertThat(product.description()).contains("La réédition du modèle de 1990");
-        assertThat(product.createdAt()).isEqualTo(NOW);
-        assertThat(product.id().value().version()).as("UUID v7").isEqualTo(7);
-        assertThat(UuidV7.timestampOf(product.id().value())).isNotNull();
+        // WHEN
+        Product product = Product.draft(KARIM, name, " Nike", "sneakers ", description, NOW);
+
+        // THEN
+        assertThat(product.getStatus()).isEqualTo(ProductStatus.DRAFT);
+        assertThat(product.getSellerId()).isEqualTo(KARIM);
+        assertThat(product.getName()).isEqualTo("Air Max 90 Infrared");
+        assertThat(product.getBrand()).isEqualTo("Nike");
+        assertThat(product.getCategory()).isEqualTo("sneakers");
+        assertThat(product.getDescription()).contains("La réédition du modèle de 1990");
+        assertThat(product.getCreatedAt()).isEqualTo(NOW);
+        assertThat(product.getId().getValue().version()).as("UUID v7").isEqualTo(7);
+        assertThat(UuidV7.timestampOf(product.getId().getValue())).isNotNull();
     }
 
     @Test
-    void keeps_the_creation_date_to_the_millisecond_like_mongodb() {
-        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", null,
-                Instant.parse("2026-10-31T10:00:00.123456789Z"));
+    @DisplayName("SHOULD keep the creation date to the millisecond WHEN the clock is more precise (like MongoDB)")
+    void shouldKeepCreationDateToTheMillisecondWhenClockIsMorePrecise() {
+        // GIVEN
+        Instant preciseNow = Instant.parse("2026-10-31T10:00:00.123456789Z");
 
-        assertThat(product.createdAt()).isEqualTo(Instant.parse("2026-10-31T10:00:00.123Z"));
+        // WHEN
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", null, preciseNow);
+
+        // THEN
+        assertThat(product.getCreatedAt()).isEqualTo(Instant.parse("2026-10-31T10:00:00.123Z"));
     }
 
     @Test
-    void gives_each_product_its_own_id() {
-        Product first = draft("Air Max 90");
-        Product second = draft("Air Max 90");
+    @DisplayName("SHOULD give each product its own id WHEN two identical products are created")
+    void shouldGiveEachProductItsOwnIdWhenTwoIdenticalProductsAreCreated() {
+        // GIVEN / WHEN
+        Product first = draftNamed("Air Max 90");
+        Product second = draftNamed("Air Max 90");
 
-        assertThat(first.id()).isNotEqualTo(second.id());
+        // THEN
+        assertThat(first.getId()).isNotEqualTo(second.getId());
     }
 
     @ParameterizedTest
     @NullSource
     @ValueSource(strings = {"", "   "})
-    void description_is_optional(String description) {
+    @DisplayName("SHOULD have no description WHEN the description is missing or blank")
+    void shouldHaveNoDescriptionWhenDescriptionIsMissingOrBlank(final String description) {
+        // WHEN
         Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", description, NOW);
 
-        assertThat(product.description()).isEmpty();
+        // THEN
+        assertThat(product.getDescription()).isEmpty();
     }
 
     @ParameterizedTest
     @NullSource
     @ValueSource(strings = {"", "   "})
-    void refuses_a_product_without_name(String name) {
-        assertThatThrownBy(() -> draft(name))
-                .isInstanceOf(InvalidProductException.class)
-                .hasMessage("name is required")
-                .extracting("field").isEqualTo("name");
+    @DisplayName("SHOULD refuse the product WHEN the name is missing or blank")
+    void shouldRefuseProductWhenNameIsMissingOrBlank(final String name) {
+        // WHEN
+        Throwable error = catchThrowable(() -> draftNamed(name));
+
+        // THEN
+        assertThat(error).isInstanceOf(InvalidProductException.class).hasMessage("name is required");
+        assertThat(((InvalidProductException) error).getField()).isEqualTo("name");
     }
 
     @Test
-    void accepts_a_name_of_120_characters_but_not_more() {
-        assertThat(draft("a".repeat(120)).name()).hasSize(120);
+    @DisplayName("SHOULD accept the product WHEN the name has exactly 120 characters")
+    void shouldAcceptProductWhenNameHas120Characters() {
+        // WHEN
+        Product product = draftNamed("a".repeat(120));
 
-        assertThatThrownBy(() -> draft("a".repeat(121)))
-                .isInstanceOf(InvalidProductException.class)
+        // THEN
+        assertThat(product.getName()).hasSize(120);
+    }
+
+    @Test
+    @DisplayName("SHOULD refuse the product WHEN the name is longer than 120 characters")
+    void shouldRefuseProductWhenNameIsLongerThan120Characters() {
+        // WHEN
+        Throwable error = catchThrowable(() -> draftNamed("a".repeat(121)));
+
+        // THEN
+        assertThat(error).isInstanceOf(InvalidProductException.class)
                 .hasMessage("name must be at most 120 characters");
     }
 
     @Test
-    void refuses_a_product_without_brand() {
-        assertThatThrownBy(() -> Product.draft(KARIM, "Air Max 90", " ", "sneakers", null, NOW))
-                .isInstanceOf(InvalidProductException.class)
-                .hasMessage("brand is required");
+    @DisplayName("SHOULD refuse the product WHEN the brand is blank")
+    void shouldRefuseProductWhenBrandIsBlank() {
+        // WHEN
+        Throwable error = catchThrowable(() -> Product.draft(KARIM, "Air Max 90", " ", "sneakers", null, NOW));
+
+        // THEN
+        assertThat(error).isInstanceOf(InvalidProductException.class).hasMessage("brand is required");
     }
 
     @Test
-    void refuses_a_brand_longer_than_60_characters() {
-        assertThatThrownBy(() -> Product.draft(KARIM, "Air Max 90", "b".repeat(61), "sneakers", null, NOW))
-                .isInstanceOf(InvalidProductException.class)
+    @DisplayName("SHOULD refuse the product WHEN the brand is longer than 60 characters")
+    void shouldRefuseProductWhenBrandIsLongerThan60Characters() {
+        // WHEN
+        Throwable error = catchThrowable(() -> Product.draft(KARIM, "Air Max 90", "b".repeat(61), "sneakers", null, NOW));
+
+        // THEN
+        assertThat(error).isInstanceOf(InvalidProductException.class)
                 .hasMessage("brand must be at most 60 characters");
     }
 
     @Test
-    void refuses_a_product_without_category() {
-        assertThatThrownBy(() -> Product.draft(KARIM, "Air Max 90", "Nike", null, null, NOW))
-                .isInstanceOf(InvalidProductException.class)
-                .hasMessage("category is required");
+    @DisplayName("SHOULD refuse the product WHEN the category is missing")
+    void shouldRefuseProductWhenCategoryIsMissing() {
+        // WHEN
+        Throwable error = catchThrowable(() -> Product.draft(KARIM, "Air Max 90", "Nike", null, null, NOW));
+
+        // THEN
+        assertThat(error).isInstanceOf(InvalidProductException.class).hasMessage("category is required");
     }
 
     @Test
-    void refuses_a_description_longer_than_2000_characters() {
-        assertThatThrownBy(() -> Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", "d".repeat(2_001), NOW))
-                .isInstanceOf(InvalidProductException.class)
+    @DisplayName("SHOULD refuse the product WHEN the description is longer than 2000 characters")
+    void shouldRefuseProductWhenDescriptionIsLongerThan2000Characters() {
+        // GIVEN
+        String description = "d".repeat(2_001);
+
+        // WHEN
+        Throwable error = catchThrowable(() -> Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", description, NOW));
+
+        // THEN
+        assertThat(error).isInstanceOf(InvalidProductException.class)
                 .hasMessage("description must be at most 2000 characters");
     }
 
     @Test
-    void a_seller_id_cannot_be_blank() {
-        assertThatThrownBy(() -> new SellerId(" "))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Seller id must not be blank");
+    @DisplayName("SHOULD refuse the seller id WHEN it is blank")
+    void shouldRefuseSellerIdWhenBlank() {
+        // WHEN
+        Throwable error = catchThrowable(() -> new SellerId(" "));
+
+        // THEN
+        assertThat(error).isInstanceOf(IllegalArgumentException.class).hasMessage("Seller id must not be blank");
     }
 
-    private static Product draft(String name) {
+    private static Product draftNamed(final String name) {
         return Product.draft(KARIM, name, "Nike", "sneakers", null, NOW);
     }
 }
