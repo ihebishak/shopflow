@@ -25,7 +25,7 @@ X-Seller-Id: seller-karim
 GET http://localhost:8101/api/v1/seller/products/{{productId}}
 X-Seller-Id: seller-lea
 
-### Produit invalide, nom vide (500 pour l'instant : deviendra un 400 clair à l'étape 3.4)
+### Produit invalide, nom vide : 400 (le message d'erreur deviendra clair à l'étape 3.4)
 POST http://localhost:8101/api/v1/seller/products
 X-Seller-Id: seller-karim
 Content-Type: application/json
