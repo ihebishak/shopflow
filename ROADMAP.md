@@ -87,8 +87,10 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 - ✅ 3.3b API REST créer + consulter un produit + fichier `.http`
 - ✅ 3.3c Outillage : Lombok + MapStruct configurés, conventions « Code Java » écrites
 - ✅ 3.3d Starter et shared-kernel : `record` → classes Lombok
-- ⬜ 3.3e catalog-service réorganisé : `api`/`spi`, DTO `…RequestDto`/`…ResponseDto`, mappers MapStruct, Bean Validation, tests GIVEN/WHEN/THEN + `@WebMvcTest`
-- ⬜ 3.3f Swagger (springdoc-openapi) : page Swagger UI, interfaces `…ControllerDocumentation`
+- ✅ 3.3e catalog-service, domaine + application : classes Lombok, `application/api` (cas d'usage) / `spi` / `service`, `CreateProductCommand`, tests GIVEN/WHEN/THEN
+- ⬜ 3.3f catalog-service, web : DTO `…RequestDto`/`…ResponseDto`, mapper MapStruct, Bean Validation, test `@WebMvcTest`
+- ⬜ 3.3g catalog-service, MongoDB : `ProductDocument` en classe, mapper MapStruct
+- ⬜ 3.3h Swagger (springdoc-openapi) : page Swagger UI, interfaces `…ControllerDocumentation`
 - ⬜ 3.4 Erreurs Problem Details (RFC 9457) : 404 produit introuvable, 400 champ invalide
 - ⬜ 3.5 Événement `ProductCreated` publié via l'outbox (visible dans Kafka UI)
 - ⬜ 3.6 Règles ArchUnit de l'architecture hexagonale

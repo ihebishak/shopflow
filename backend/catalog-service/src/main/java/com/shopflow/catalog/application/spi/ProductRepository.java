@@ -1,4 +1,4 @@
-package com.shopflow.catalog.application;
+package com.shopflow.catalog.application.spi;
 
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
@@ -6,7 +6,7 @@ import com.shopflow.catalog.domain.ProductId;
 import java.util.Optional;
 
 /**
- * Port : enregistrer et retrouver des produits. Le cas d'usage ne sait pas comment ;
+ * Port de sortie : enregistrer et retrouver des produits. Les cas d'usage ne savent pas comment ;
  * l'implémentation (MongoDB) est un adaptateur de la couche infrastructure.
  */
 public interface ProductRepository {

@@ -1,6 +1,6 @@
 package com.shopflow.catalog.infrastructure.mongo;
 
-import com.shopflow.catalog.application.ProductRepository;
+import com.shopflow.catalog.application.spi.ProductRepository;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import org.springframework.data.mongodb.core.MongoTemplate;

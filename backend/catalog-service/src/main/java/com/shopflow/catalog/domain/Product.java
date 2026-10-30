@@ -1,5 +1,8 @@
 package com.shopflow.catalog.domain;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
@@ -8,9 +11,10 @@ import java.util.Optional;
 /**
  * Produit d'un vendeur (ex. « Air Max 90 Infrared » de Nike).
  * <p>
- * Java pur : aucune dépendance à Spring, MongoDB ou Kafka. Un produit ne peut être créé que par
- * {@link #draft}, qui garantit qu'il respecte les règles métier.
+ * Aucune dépendance à Spring, MongoDB ou Kafka (Lombok n'agit qu'à la compilation). Un produit ne peut être créé
+ * que par {@link #draft}, qui garantit qu'il respecte les règles métier.
  */
+@Getter
 public final class Product {
 
     public static final int NAME_MAX_LENGTH = 120;
@@ -23,12 +27,17 @@ public final class Product {
     private final String name;
     private final String brand;
     private final String category;
+
+    /** Facultative : exposée par {@link #getDescription()} sous forme d'{@link Optional}. */
+    @Getter(AccessLevel.NONE)
     private final String description;
+
     private final ProductStatus status;
     private final Instant createdAt;
 
-    private Product(ProductId id, SellerId sellerId, String name, String brand, String category,
-                    String description, ProductStatus status, Instant createdAt) {
+    private Product(final ProductId id, final SellerId sellerId, final String name, final String brand,
+                    final String category, final String description, final ProductStatus status,
+                    final Instant createdAt) {
         this.id = id;
         this.sellerId = sellerId;
         this.name = name;
@@ -47,8 +56,8 @@ public final class Product {
      *                    conservée à la milliseconde comme dans MongoDB
      * @throws InvalidProductException si une règle n'est pas respectée
      */
-    public static Product draft(SellerId sellerId, String name, String brand, String category,
-                                String description, Instant now) {
+    public static Product draft(final SellerId sellerId, final String name, final String brand, final String category,
+                                final String description, final Instant now) {
         Objects.requireNonNull(sellerId, "sellerId");
         Objects.requireNonNull(now, "now");
         return new Product(ProductId.newId(), sellerId,
@@ -64,15 +73,20 @@ public final class Product {
      *
      * @param description {@code null} s'il n'y en a pas
      */
-    public static Product restore(ProductId id, SellerId sellerId, String name, String brand, String category,
-                                  String description, ProductStatus status, Instant createdAt) {
+    public static Product restore(final ProductId id, final SellerId sellerId, final String name, final String brand,
+                                  final String category, final String description, final ProductStatus status,
+                                  final Instant createdAt) {
         return new Product(Objects.requireNonNull(id, "id"), Objects.requireNonNull(sellerId, "sellerId"),
                 Objects.requireNonNull(name, "name"), Objects.requireNonNull(brand, "brand"),
                 Objects.requireNonNull(category, "category"), description,
                 Objects.requireNonNull(status, "status"), Objects.requireNonNull(createdAt, "createdAt"));
     }
 
-    private static String required(String field, String value, int maxLength) {
+    public Optional<String> getDescription() {
+        return Optional.ofNullable(description);
+    }
+
+    private static String required(final String field, final String value, final int maxLength) {
         String text = value == null ? "" : value.strip();
         if (text.isEmpty()) {
             throw new InvalidProductException(field, field + " is required");
@@ -80,47 +94,15 @@ public final class Product {
         return checkLength(field, text, maxLength);
     }
 
-    private static String optional(String field, String value, int maxLength) {
+    private static String optional(final String field, final String value, final int maxLength) {
         String text = value == null ? "" : value.strip();
         return text.isEmpty() ? null : checkLength(field, text, maxLength);
     }
 
-    private static String checkLength(String field, String text, int maxLength) {
+    private static String checkLength(final String field, final String text, final int maxLength) {
         if (text.length() > maxLength) {
             throw new InvalidProductException(field, field + " must be at most " + maxLength + " characters");
         }
         return text;
-    }
-
-    public ProductId id() {
-        return id;
-    }
-
-    public SellerId sellerId() {
-        return sellerId;
-    }
-
-    public String name() {
-        return name;
-    }
-
-    public String brand() {
-        return brand;
-    }
-
-    public String category() {
-        return category;
-    }
-
-    public Optional<String> description() {
-        return Optional.ofNullable(description);
-    }
-
-    public ProductStatus status() {
-        return status;
-    }
-
-    public Instant createdAt() {
-        return createdAt;
     }
 }

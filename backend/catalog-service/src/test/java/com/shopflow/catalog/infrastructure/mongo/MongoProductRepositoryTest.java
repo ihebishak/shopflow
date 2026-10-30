@@ -58,7 +58,7 @@ class MongoProductRepositoryTest {
 
         repository.save(airMax);
 
-        assertThat(repository.findById(airMax.id())).get().usingRecursiveComparison().isEqualTo(airMax);
+        assertThat(repository.findById(airMax.getId())).get().usingRecursiveComparison().isEqualTo(airMax);
     }
 
     @Test
@@ -70,7 +70,7 @@ class MongoProductRepositoryTest {
 
         Document stored = mongoTemplate.getCollection("products").find().first();
         assertThat(stored).isNotNull();
-        assertThat(stored.get("_id")).isEqualTo(airMax.id().toString());
+        assertThat(stored.get("_id")).isEqualTo(airMax.getId().toString());
         assertThat(stored).containsEntry("sellerId", "seller-karim")
                 .containsEntry("name", "Air Max 90 Infrared")
                 .containsEntry("brand", "Nike")

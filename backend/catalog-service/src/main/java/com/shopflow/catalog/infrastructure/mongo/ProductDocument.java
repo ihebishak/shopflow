@@ -28,9 +28,9 @@ record ProductDocument(
     static final String COLLECTION = "products";
 
     static ProductDocument from(Product product) {
-        return new ProductDocument(product.id().toString(), product.sellerId().value(), product.name(),
-                product.brand(), product.category(), product.description().orElse(null), product.status(),
-                product.createdAt());
+        return new ProductDocument(product.getId().toString(), product.getSellerId().getValue(), product.getName(),
+                product.getBrand(), product.getCategory(), product.getDescription().orElse(null), product.getStatus(),
+                product.getCreatedAt());
     }
 
     Product toDomain() {

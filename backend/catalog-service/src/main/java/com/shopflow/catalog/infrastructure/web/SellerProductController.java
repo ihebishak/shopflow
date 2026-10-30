@@ -1,7 +1,7 @@
 package com.shopflow.catalog.infrastructure.web;
 
-import com.shopflow.catalog.application.CreateProduct;
-import com.shopflow.catalog.application.FindSellerProduct;
+import com.shopflow.catalog.application.api.CreateProductUseCase;
+import com.shopflow.catalog.application.api.FindSellerProductUseCase;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
@@ -29,21 +29,22 @@ class SellerProductController {
 
     static final String SELLER_HEADER = "X-Seller-Id";
 
-    private final CreateProduct createProduct;
-    private final FindSellerProduct findSellerProduct;
+    private final CreateProductUseCase createProductUseCase;
+    private final FindSellerProductUseCase findSellerProductUseCase;
 
-    SellerProductController(CreateProduct createProduct, FindSellerProduct findSellerProduct) {
-        this.createProduct = createProduct;
-        this.findSellerProduct = findSellerProduct;
+    SellerProductController(CreateProductUseCase createProductUseCase,
+                            FindSellerProductUseCase findSellerProductUseCase) {
+        this.createProductUseCase = createProductUseCase;
+        this.findSellerProductUseCase = findSellerProductUseCase;
     }
 
     /** Crée un brouillon : 201 Created, avec l'adresse du produit dans l'en-tête {@code Location}. */
     @PostMapping
     ResponseEntity<ProductResponse> create(@RequestHeader(SELLER_HEADER) String sellerId,
                                            @RequestBody CreateProductRequest request) {
-        Product product = createProduct.handle(request.toCommand(new SellerId(sellerId)));
+        Product product = createProductUseCase.createProduct(request.toCommand(new SellerId(sellerId)));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{productId}").buildAndExpand(product.id()).toUri();
+                .path("/{productId}").buildAndExpand(product.getId()).toUri();
         return ResponseEntity.created(location).body(ProductResponse.from(product));
     }
 
@@ -51,7 +52,7 @@ class SellerProductController {
     @GetMapping("/{productId}")
     ResponseEntity<ProductResponse> get(@RequestHeader(SELLER_HEADER) String sellerId,
                                         @PathVariable UUID productId) {
-        return findSellerProduct.handle(new SellerId(sellerId), new ProductId(productId))
+        return findSellerProductUseCase.findSellerProduct(new SellerId(sellerId), new ProductId(productId))
                 .map(ProductResponse::from)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
