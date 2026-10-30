@@ -60,7 +60,7 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 - ✅ 1.4 Module `contracts` (Avro `.avsc`, génération des classes, `TopicRecordNameStrategy`, schémas du topic produit + test aller-retour) ; module `shared-kernel` (`Money` métier) ; Schema Registry Confluent dans le compose (compatibilité FULL), branché sur Kafka UI
 - ✅ 1.5 Module `shopflow-starter` : enveloppe CloudEvents (headers Kafka), propagation du `correlationId` (HTTP, Kafka, logs), UUID v7 ; MongoDB en replica set (prérequis de l'outbox)
 - ✅ 1.6a `shopflow-starter` : configuration Kafka/Avro par défaut + **outbox** (transaction MongoDB, relais réveillé après commit, un seul relais actif, ordre garanti)
-- ⬜ 1.6b `shopflow-starter` : consommateurs idempotents + rejeux et DLT
+- ✅ 1.6b `shopflow-starter` : consommateurs idempotents (transaction MongoDB automatique autour de chaque `@KafkaListener`) + réessais sur place puis DLT par service
 - ⬜ 1.6c `shopflow-starter` : erreurs Problem Details (RFC 9457) + règles ArchUnit de l'architecture hexagonale
 - ⬜ 1.7 Ajout de Redis, Keycloak et Mailpit (serveur mail de test) dans le compose
 - ⬜ 1.8 Ajout de Camunda 8 (Zeebe, Operate, Tasklist, Elasticsearch) dans le compose + premier processus « hello world »

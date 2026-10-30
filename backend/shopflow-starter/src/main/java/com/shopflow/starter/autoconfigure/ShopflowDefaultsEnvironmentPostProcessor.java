@@ -42,7 +42,11 @@ public class ShopflowDefaultsEnvironmentPostProcessor implements EnvironmentPost
         defaults.put("spring.kafka.consumer.group-id", "${spring.application.name}");
         defaults.put("spring.kafka.consumer.auto-offset-reset", "earliest");
         defaults.put("spring.kafka.consumer.key-deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        defaults.put("spring.kafka.consumer.value-deserializer", "io.confluent.kafka.serializers.KafkaAvroDeserializer");
+        // Un message illisible ne fait pas planter la lecture : il part en DLT au lieu de bloquer le service
+        defaults.put("spring.kafka.consumer.value-deserializer",
+                "org.springframework.kafka.support.serializer.ErrorHandlingDeserializer");
+        defaults.put("spring.kafka.consumer.properties.spring.deserializer.value.delegate.class",
+                "io.confluent.kafka.serializers.KafkaAvroDeserializer");
         defaults.put("spring.kafka.properties.specific.avro.reader", "true");
 
         // Schema Registry : un subject par type d'événement dans chaque topic (docs/03-conventions.md § 1.2)
