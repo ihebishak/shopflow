@@ -2,6 +2,7 @@ package com.shopflow.catalog;
 
 import com.shopflow.starter.consumer.IdempotentListenerAdvice;
 import com.shopflow.starter.outbox.OutboxPublisher;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -36,25 +37,47 @@ class CatalogServiceApplicationTest {
     static final MongoDBContainer MONGO = new MongoDBContainer("mongo:7.0");
 
     @Autowired
-    ApplicationContext context;
+    private ApplicationContext context;
 
     @Autowired
-    TestRestTemplate http;
+    private TestRestTemplate http;
 
     @Test
     @SuppressWarnings("unchecked")
-    void starts_and_reports_itself_healthy() {
+    @DisplayName("SHOULD report itself healthy with MongoDB WHEN the service is running")
+    void shouldReportHealthyWhenServiceIsRunning() {
+        // WHEN
         Map<String, Object> health = http.getForObject("/actuator/health", Map.class);
 
+        // THEN
         assertThat(health).containsEntry("status", "UP");
         assertThat((Map<String, Object>) health.get("components")).containsKey("mongo");
     }
 
     @Test
-    void gets_the_starter_foundations_without_any_configuration() {
+    @DisplayName("SHOULD get the starter foundations WHEN the service declares no configuration for them")
+    void shouldGetStarterFoundationsWithoutConfiguration() {
+        // WHEN / THEN
         assertThat(context.getBean(OutboxPublisher.class)).as("outbox").isNotNull();
         assertThat(context.getBean(IdempotentListenerAdvice.class)).as("consommateurs idempotents").isNotNull();
         assertThat(context.getBean(CommonErrorHandler.class)).as("réessais puis DLT")
                 .isInstanceOf(DefaultErrorHandler.class);
+    }
+
+    @Test
+    @DisplayName("SHOULD publish the OpenAPI documentation of the seller product api WHEN the service is running")
+    void shouldPublishOpenApiDocumentationWhenServiceIsRunning() {
+        // WHEN
+        String apiDocs = http.getForObject("/v3/api-docs", String.class);
+
+        // THEN
+        assertThat(apiDocs)
+                .contains("ShopFlow — Catalogue")
+                .contains("\"/api/v1/seller/products\"")
+                .contains("\"/api/v1/seller/products/{productId}\"")
+                .contains("Produits (vendeur)")
+                .contains("X-Seller-Id");
+        assertThat(http.getForEntity("/swagger-ui/index.html", String.class).getStatusCode().is2xxSuccessful())
+                .as("page Swagger UI").isTrue();
     }
 }

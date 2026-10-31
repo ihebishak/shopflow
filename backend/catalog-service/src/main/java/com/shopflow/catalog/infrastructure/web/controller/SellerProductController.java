@@ -8,6 +8,7 @@ import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.mapper.ProductRestMapper;
+import com.shopflow.catalog.infrastructure.web.swagger.SellerProductControllerDocumentation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -32,7 +33,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/seller/products")
 @RequiredArgsConstructor
-public class SellerProductController {
+public class SellerProductController implements SellerProductControllerDocumentation {
 
     public static final String SELLER_HEADER = "X-Seller-Id";
 
@@ -41,6 +42,7 @@ public class SellerProductController {
     private final ProductRestMapper productRestMapper;
 
     /** Crée un brouillon : 201 Created, avec l'adresse du produit dans l'en-tête {@code Location}. */
+    @Override
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProductResponseDto> createProduct(@RequestHeader(SELLER_HEADER) final String sellerId,
                                                             @Valid @RequestBody final CreateProductRequestDto requestDto) {
@@ -52,6 +54,7 @@ public class SellerProductController {
     }
 
     /** Un des produits du vendeur : 200, ou 404 s'il n'existe pas ou appartient à un autre vendeur. */
+    @Override
     @GetMapping(value = "/{productId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProductResponseDto> getProduct(@RequestHeader(SELLER_HEADER) final String sellerId,
                                                          @PathVariable final UUID productId) {
