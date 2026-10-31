@@ -1,12 +1,14 @@
 package com.shopflow.testsupport.architecture.fixture.bad.application.service;
 
+import com.shopflow.testsupport.architecture.fixture.bad.application.api.BadThingUseCase;
+import com.shopflow.testsupport.architecture.fixture.bad.application.api.command.RenameBadThingCommand;
 import com.shopflow.testsupport.architecture.fixture.bad.domain.BadThing;
 import com.shopflow.testsupport.architecture.fixture.bad.infrastructure.mongo.BadMongoRepository;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 
 /** Viole volontairement les règles de la couche application. */
-public class BadThingService {
+public class BadThingService implements BadThingUseCase {
 
     private final MongoTemplate mongoTemplate;
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -19,5 +21,10 @@ public class BadThingService {
         this.kafkaTemplate = kafkaTemplate;
         this.badMongoRepository = badMongoRepository;
         this.badThing = badThing;
+    }
+
+    @Override
+    public void renameThing(final RenameBadThingCommand command) {
+        badThing.hashCode();
     }
 }

@@ -60,6 +60,8 @@ class ArchitectureRulesTest {
                 rule("controller wrapping the domain", HexagonalArchitectureRules.CONTROLLERS_DO_NOT_EXPOSE_THE_DOMAIN, "wrapped()"),
                 rule("@Transactional methods", HexagonalArchitectureRules.TRANSACTIONAL_METHODS_ARE_USE_CASES, "ThingEndpoint"),
                 rule("@Transactional classes", HexagonalArchitectureRules.TRANSACTIONAL_CLASSES_ARE_USE_CASES, "BadMongoRepository"),
+                rule("service without @Validated", HexagonalArchitectureRules.SERVICES_RECEIVING_A_COMMAND_ARE_VALIDATED, "BadThingService"),
+                rule("use case without @Valid", HexagonalArchitectureRules.USE_CASES_VALIDATE_THEIR_COMMANDS, "does not validate RenameBadThingCommand"),
                 rule("outbox", ShopflowRules.EVENTS_GO_THROUGH_THE_OUTBOX, "KafkaTemplate"),
                 rule("mongodb adapter", ShopflowRules.MONGODB_STAYS_IN_ITS_ADAPTER, "BadThingService"),
                 rule("no floating point", ShopflowRules.NO_FLOATING_POINT_IN_THE_DOMAIN, "price"),
