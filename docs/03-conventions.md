@@ -225,7 +225,7 @@ com.shopflow.<service>
 **API REST**
 - DTO suffixés **`RequestDto`** (entrée) et **`ResponseDto`** (sortie), sans logique.
 - **Bean Validation** sur les `RequestDto` (`@NotBlank`, `@Size`… avec un message, repris par Swagger) et `@Valid` dans le contrôleur.
-- Les **commandes** portent les mêmes annotations : `@Valid` sur le paramètre de l'interface du cas d'usage et `@Validated` sur son service les font vérifier à chaque appel, quelle que soit l'entrée.
+- Les **commandes** portent les mêmes annotations : `@Valid` sur le paramètre de l'interface du cas d'usage et `@Validated` sur son service les font vérifier à chaque appel, quelle que soit l'entrée. Un oubli fait échouer les tests ArchUnit.
 - Le contrôleur implémente une interface **`…ControllerDocumentation`** qui porte les annotations OpenAPI (`@Tag`, `@Operation`) : le contrôleur reste lisible.
 - `consumes` / `produces` explicites (`application/json`) ; `@ResponseStatus` pour le code de succès, `ResponseEntity` seulement quand il faut des en-têtes (ex. `Location`).
 

@@ -1,7 +1,9 @@
 package com.shopflow.testsupport.architecture;
 
+import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaMethod;
+import com.tngtech.archunit.core.domain.JavaParameter;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
@@ -24,12 +26,15 @@ public final class HexagonalArchitectureRules {
 
     private static final String DOMAIN = "..domain..";
     private static final String APPLICATION = "..application..";
+    private static final String APPLICATION_API = "..application.api..";
     private static final String APPLICATION_SERVICE = "..application.service..";
     private static final String APPLICATION_SPI = "..application.spi..";
     private static final String INFRASTRUCTURE = "..infrastructure..";
     private static final String WEB = "..infrastructure.web..";
     private static final String WEB_CONTROLLER = "..infrastructure.web.controller..";
     private static final String TRANSACTIONAL = "org.springframework.transaction.annotation.Transactional";
+    private static final String VALIDATED = "org.springframework.validation.annotation.Validated";
+    private static final String VALID = "jakarta.validation.Valid";
 
     @ArchTest
     public static final ArchRule DOMAIN_DOES_NOT_DEPEND_ON_OUTER_LAYERS = noClasses()
@@ -98,7 +103,47 @@ public final class HexagonalArchitectureRules {
             .should().resideOutsideOfPackage(APPLICATION_SERVICE)
             .allowEmptyShould(true);
 
+    /** Sans {@code @Validated}, le {@code @Valid} du cas d'usage est ignoré, sans aucune erreur. */
+    @ArchTest
+    public static final ArchRule SERVICES_RECEIVING_A_COMMAND_ARE_VALIDATED = methods()
+            .that().areDeclaredInClassesThat().resideInAPackage(APPLICATION_SERVICE)
+            .and(takeACommand())
+            .should().beDeclaredInClassesThat().areAnnotatedWith(VALIDATED)
+            .allowEmptyShould(true);
+
+    /** Sur l'interface : Bean Validation interdit à une implémentation d'ajouter {@code @Valid}. */
+    @ArchTest
+    public static final ArchRule USE_CASES_VALIDATE_THEIR_COMMANDS = methods()
+            .that().areDeclaredInClassesThat().resideInAPackage(APPLICATION_API)
+            .and().areDeclaredInClassesThat().areInterfaces()
+            .and(takeACommand())
+            .should(validateTheirCommands())
+            .allowEmptyShould(true);
+
     private HexagonalArchitectureRules() {
+    }
+
+    private static DescribedPredicate<JavaMethod> takeACommand() {
+        return DescribedPredicate.describe("take a command",
+                method -> method.getParameters().stream().anyMatch(HexagonalArchitectureRules::isCommand));
+    }
+
+    private static boolean isCommand(final JavaParameter parameter) {
+        return parameter.getRawType().getSimpleName().endsWith("Command");
+    }
+
+    private static ArchCondition<JavaMethod> validateTheirCommands() {
+        return new ArchCondition<>("validate their commands") {
+            @Override
+            public void check(final JavaMethod method, final ConditionEvents events) {
+                for (JavaParameter parameter : method.getParameters()) {
+                    if (isCommand(parameter) && !parameter.isAnnotatedWith(VALID)) {
+                        events.add(SimpleConditionEvent.violated(method, method.getFullName()
+                                + " does not validate " + parameter.getRawType().getSimpleName() + " with @Valid"));
+                    }
+                }
+            }
+        };
     }
 
     /** Regarde aussi les types génériques : {@code ResponseEntity<Product>} expose le domaine. */
