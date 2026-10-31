@@ -3,6 +3,8 @@ package com.shopflow.catalog.domain;
 import com.shopflow.kernel.money.Money;
 import lombok.Getter;
 
+import java.util.Objects;
+
 /**
  * Déclinaison achetable d'un produit (ex. « Air Max 90 Infrared, 42, Rouge, 160 € »).
  * <p>
@@ -29,6 +31,12 @@ public final class Variant {
 
     static Variant create(final String size, final String color, final Money price) {
         return new Variant(Sku.newSku(), size.strip(), color.strip(), price);
+    }
+
+    /** Reconstruit une variante enregistrée. Les règles ne sont pas revérifiées : elles l'ont été à sa création. */
+    public static Variant restore(final Sku sku, final String size, final String color, final Money price) {
+        return new Variant(Objects.requireNonNull(sku, "sku"), Objects.requireNonNull(size, "size"),
+                Objects.requireNonNull(color, "color"), Objects.requireNonNull(price, "price"));
     }
 
     /** Même taille et même coloris, sans tenir compte de la casse (« rouge » et « Rouge » sont le même coloris). */
