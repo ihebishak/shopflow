@@ -133,6 +133,21 @@ Toutes les erreurs de tous les services ont la même forme (`application/problem
 - `code` : **stable**, en `UPPER_SNAKE_CASE` ; le frontend le traduit en français.
 - `correlationId` : permet de retrouver toute la trace dans les logs.
 - Erreurs de validation : liste `errors[]` (`field`, `code`, `message`).
+- `type` = `https://shopflow.dev/errors/` + code en minuscules avec tirets ; `title` = code en clair (`PRODUCT_NOT_FOUND` → « Product not found ») ; `instance` = chemin de la requête. Messages en anglais.
+
+**Mise en œuvre** — rien à écrire dans les services :
+- Le domaine lève une sous-classe de **`BusinessException`** (`shared-kernel`, Java pur) avec un code et une nature ; il ne connaît pas HTTP.
+- Le starter (`ProblemDetailsExceptionHandler`, branché automatiquement, y compris dans les tests `@WebMvcTest`) traduit :
+
+| Erreur | Statut | `code` |
+|---|---|---|
+| `BusinessException` de nature `INVALID` / `NOT_FOUND` / `CONFLICT` | 400 / 404 / 409 | celui de l'exception (+ `errors[]` si un champ est désigné) |
+| Bean Validation (`@Valid`) | 400 | `VALIDATION_FAILED` + `errors[]` (`code` = contrainte : `NOT_BLANK`, `SIZE`…) |
+| En-tête obligatoire absent | 400 | `MISSING_HEADER` |
+| Paramètre mal formé (ex. UUID invalide) | 400 | `INVALID_PARAMETER` |
+| JSON illisible | 400 | `MALFORMED_REQUEST` |
+| Autres erreurs techniques de Spring (405, 415…) | celui de Spring | nom du statut (`METHOD_NOT_ALLOWED`…) |
+| Toute autre exception | 500 | `INTERNAL_ERROR`, message générique (le détail ne va que dans les logs) |
 
 ## 4. Montants
 
