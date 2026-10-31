@@ -7,7 +7,9 @@ import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductNotFoundException;
 import com.shopflow.catalog.domain.SellerId;
+import com.shopflow.catalog.domain.Variant;
 import com.shopflow.catalog.infrastructure.web.mapper.ProductRestMapperImpl;
+import com.shopflow.kernel.money.Money;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -122,7 +124,28 @@ class SellerProductControllerTest {
         // WHEN / THEN
         mockMvc.perform(get(PRODUCTS + "/" + airMax.getId()).header(SellerProductController.SELLER_HEADER, "seller-karim"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Air Max 90 Infrared"));
+                .andExpect(jsonPath("$.name").value("Air Max 90 Infrared"))
+                .andExpect(jsonPath("$.variants").isArray())
+                .andExpect(jsonPath("$.variants").isEmpty());
+    }
+
+    @Test
+    @DisplayName("SHOULD return the variants with their price in cents WHEN the product has some")
+    void shouldReturnVariantsWhenProductHasSome() throws Exception {
+        // GIVEN
+        Product airMax = airMaxOf(KARIM);
+        Variant variant = airMax.addVariant("42", "Rouge", Money.euros(16000));
+        when(getSellerProductUseCase.getSellerProduct(KARIM, airMax.getId())).thenReturn(airMax);
+
+        // WHEN / THEN
+        mockMvc.perform(get(PRODUCTS + "/" + airMax.getId()).header(SellerProductController.SELLER_HEADER, "seller-karim"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.variants.length()").value(1))
+                .andExpect(jsonPath("$.variants[0].sku").value(variant.getSku().toString()))
+                .andExpect(jsonPath("$.variants[0].size").value("42"))
+                .andExpect(jsonPath("$.variants[0].color").value("Rouge"))
+                .andExpect(jsonPath("$.variants[0].price.amount").value(16000))
+                .andExpect(jsonPath("$.variants[0].price.currency").value("EUR"));
     }
 
     @Test

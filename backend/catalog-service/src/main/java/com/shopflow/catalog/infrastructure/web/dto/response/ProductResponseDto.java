@@ -8,6 +8,7 @@ import lombok.ToString;
 import lombok.extern.jackson.Jacksonized;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Produit renvoyé par l'API vendeur. Séparé du domaine : le format de l'API reste stable si le domaine évolue.
@@ -44,4 +45,7 @@ public class ProductResponseDto {
 
     @Schema(description = "Date de création (UTC).", example = "2026-10-31T10:00:00.123Z")
     private final Instant createdAt;
+
+    @Schema(description = "Variantes du produit ; liste vide s'il n'y en a pas.")
+    private final List<VariantResponseDto> variants;
 }

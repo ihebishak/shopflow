@@ -60,6 +60,7 @@ class SellerProductApiTest {
         assertThat(product.getName()).isEqualTo("Air Max 90 Infrared");
         assertThat(product.getDescription()).isEqualTo("La réédition du modèle de 1990");
         assertThat(product.getCreatedAt()).isNotNull();
+        assertThat(product.getVariants()).isEmpty();
         assertThat(response.getHeaders().getLocation()).hasPath(PRODUCTS + "/" + product.getId());
     }
 
