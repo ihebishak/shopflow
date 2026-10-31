@@ -5,10 +5,12 @@ import com.mongodb.client.MongoClients;
 import com.shopflow.catalog.domain.DuplicateVariantException;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
+import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.catalog.infrastructure.mongo.document.ProductDocument;
 import com.shopflow.catalog.infrastructure.mongo.mapper.ProductDocumentMapperImpl;
+import com.shopflow.kernel.error.ErrorKind;
 import com.shopflow.kernel.money.Money;
 import org.bson.Document;
 import org.junit.jupiter.api.AfterAll;
@@ -74,7 +76,7 @@ class MongoProductRepositoryTest {
         Optional<Product> found = mongoProductRepository.findById(airMax.getId());
 
         // THEN
-        assertThat(found).get().usingRecursiveComparison().isEqualTo(airMax);
+        assertThat(found).get().usingRecursiveComparison().ignoringFields("version").isEqualTo(airMax);
     }
 
     @Test
@@ -123,7 +125,7 @@ class MongoProductRepositoryTest {
         Optional<Product> found = mongoProductRepository.findById(airMax.getId());
 
         // THEN
-        assertThat(found).get().usingRecursiveComparison().isEqualTo(airMax);
+        assertThat(found).get().usingRecursiveComparison().ignoringFields("version").isEqualTo(airMax);
     }
 
     @Test
@@ -199,6 +201,60 @@ class MongoProductRepositoryTest {
 
         // THEN
         assertThat(error).isInstanceOf(DuplicateVariantException.class);
+    }
+
+    @Test
+    @DisplayName("SHOULD start at version 0 WHEN a new product is saved")
+    void shouldStartAtVersionZeroWhenNewProductIsSaved() {
+        // GIVEN
+        Product airMax = draftAirMax();
+
+        // WHEN
+        mongoProductRepository.save(airMax);
+
+        // THEN
+        assertThat(mongoProductRepository.findById(airMax.getId()).orElseThrow().getVersion()).isZero();
+    }
+
+    @Test
+    @DisplayName("SHOULD increase the version WHEN a product read back is saved again")
+    void shouldIncreaseVersionWhenProductReadBackIsSavedAgain() {
+        // GIVEN
+        Product airMax = draftAirMax();
+        mongoProductRepository.save(airMax);
+        Product readBack = mongoProductRepository.findById(airMax.getId()).orElseThrow();
+
+        // WHEN
+        readBack.addVariant("42", "Rouge", PRICE);
+        mongoProductRepository.save(readBack);
+
+        // THEN
+        assertThat(mongoProductRepository.findById(airMax.getId()).orElseThrow().getVersion()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("SHOULD refuse the save and keep the other variant WHEN the product changed since it was read")
+    void shouldRefuseSaveWhenProductChangedSinceItWasRead() {
+        // GIVEN
+        Product airMax = draftAirMax();
+        airMax.addVariant("42", "Rouge", PRICE);
+        mongoProductRepository.save(airMax);
+        Product readByComputer = mongoProductRepository.findById(airMax.getId()).orElseThrow();
+        Product readByPhone = mongoProductRepository.findById(airMax.getId()).orElseThrow();
+        readByComputer.addVariant("43", "Rouge", PRICE);
+        mongoProductRepository.save(readByComputer);
+        readByPhone.addVariant("44", "Rouge", PRICE);
+
+        // WHEN
+        Throwable error = catchThrowable(() -> mongoProductRepository.save(readByPhone));
+
+        // THEN
+        assertThat(error).isInstanceOf(ProductModifiedConcurrentlyException.class)
+                .hasMessage("Product " + airMax.getId() + " was modified concurrently");
+        assertThat(((ProductModifiedConcurrentlyException) error).getKind()).isEqualTo(ErrorKind.CONFLICT);
+        assertThat(((ProductModifiedConcurrentlyException) error).getCode()).isEqualTo("PRODUCT_MODIFIED_CONCURRENTLY");
+        Product saved = mongoProductRepository.findById(airMax.getId()).orElseThrow();
+        assertThat(saved.getVariants()).extracting(Variant::getSize).containsExactly("42", "43");
     }
 
     private static Product draftAirMax() {

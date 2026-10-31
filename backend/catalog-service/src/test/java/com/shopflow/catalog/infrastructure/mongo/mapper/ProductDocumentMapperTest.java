@@ -110,6 +110,23 @@ class ProductDocumentMapperTest {
     }
 
     @Test
+    @DisplayName("SHOULD keep the version WHEN a document goes through the domain and back")
+    void shouldKeepVersionWhenDocumentGoesThroughTheDomainAndBack() {
+        // GIVEN
+        ProductDocument document = ProductDocument.builder().id(UuidV7.generate().toString())
+                .sellerId("seller-karim").name("Air Max 90").brand("Nike").category("sneakers")
+                .status(ProductStatus.DRAFT).createdAt(NOW).version(5L).build();
+
+        // WHEN
+        Product product = productDocumentMapper.toDomain(document);
+        ProductDocument mappedBack = productDocumentMapper.toDocument(product);
+
+        // THEN
+        assertThat(product.getVersion()).isEqualTo(5L);
+        assertThat(mappedBack.getVersion()).isEqualTo(5L);
+    }
+
+    @Test
     @DisplayName("SHOULD have no variant WHEN the document was saved before variants existed")
     void shouldHaveNoVariantWhenDocumentWasSavedBeforeVariantsExisted() {
         // GIVEN

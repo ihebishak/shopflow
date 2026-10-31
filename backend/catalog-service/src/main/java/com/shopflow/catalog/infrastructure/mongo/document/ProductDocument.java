@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -40,4 +41,8 @@ public class ProductDocument {
 
     /** {@code null} à la lecture des produits enregistrés avant l'arrivée des variantes. */
     private final List<VariantDocument> variants;
+
+    /** Comparé puis augmenté par Spring Data à chaque enregistrement : un enregistrement périmé est refusé. */
+    @Version
+    private final Long version;
 }
