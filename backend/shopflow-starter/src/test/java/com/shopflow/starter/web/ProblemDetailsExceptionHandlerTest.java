@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.jackson.Jacksonized;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,11 +17,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -95,6 +98,34 @@ class ProblemDetailsExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("SHOULD answer 400 VALIDATION_FAILED sorted by field WHEN a use case refuses its command")
+    void shouldAnswer400SortedByFieldWhenUseCaseRefusesCommand() throws Exception {
+        mockMvc.perform(post("/test/commands").param("name", "a name far too long").param("brand", " ")
+                        .header("X-Correlation-Id", CORRELATION_ID))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.type").value("https://shopflow.dev/errors/validation-failed"))
+                .andExpect(jsonPath("$.detail").value("The request contains 2 invalid field(s)."))
+                .andExpect(jsonPath("$.correlationId").value(CORRELATION_ID))
+                .andExpect(jsonPath("$.errors.length()").value(2))
+                .andExpect(jsonPath("$.errors[0].field").value("brand"))
+                .andExpect(jsonPath("$.errors[0].code").value("NOT_BLANK"))
+                .andExpect(jsonPath("$.errors[0].message").value("brand is required"))
+                .andExpect(jsonPath("$.errors[1].field").value("name"))
+                .andExpect(jsonPath("$.errors[1].code").value("SIZE"))
+                .andExpect(jsonPath("$.errors[1].message").value("name must be at most 10 characters"));
+    }
+
+    @Test
+    @DisplayName("SHOULD run the use case WHEN its command is valid")
+    void shouldRunUseCaseWhenCommandIsValid() throws Exception {
+        mockMvc.perform(post("/test/commands").param("name", "Air Max").param("brand", "Nike"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Nike Air Max"));
+    }
+
+    @Test
     @DisplayName("SHOULD answer 400 MISSING_HEADER WHEN a required header is absent")
     void shouldAnswer400WhenRequiredHeaderIsAbsent() throws Exception {
         mockMvc.perform(get("/test/whoami"))
@@ -144,14 +175,48 @@ class ProblemDetailsExceptionHandlerTest {
     static class TestApplication {
 
         @Bean
-        ThingController thingController() {
-            return new ThingController();
+        CreateThingUseCase createThingUseCase() {
+            return new CreateThingService();
         }
+
+        @Bean
+        ThingController thingController(final CreateThingUseCase createThingUseCase) {
+            return new ThingController(createThingUseCase);
+        }
+    }
+
+    /** Cas d'usage de test, construit comme ceux des services : {@code @Valid} sur l'interface. */
+    interface CreateThingUseCase {
+
+        String createThing(@Valid ThingCommand command);
+    }
+
+    @Validated
+    static class CreateThingService implements CreateThingUseCase {
+
+        @Override
+        public String createThing(final ThingCommand command) {
+            return command.getBrand() + " " + command.getName();
+        }
+    }
+
+    @Getter
+    @Builder
+    static class ThingCommand {
+
+        @Size(max = 10, message = "name must be at most {max} characters")
+        private final String name;
+
+        @NotBlank(message = "brand is required")
+        private final String brand;
     }
 
     /** Contrôleur de test : chaque adresse provoque une sorte d'erreur. */
     @RestController
+    @RequiredArgsConstructor
     static class ThingController {
+
+        private final CreateThingUseCase createThingUseCase;
 
         @GetMapping("/test/things/{id}")
         String find(@PathVariable final String id) {
@@ -171,6 +236,11 @@ class ProblemDetailsExceptionHandlerTest {
         @PostMapping("/test/things")
         String create(@Valid @RequestBody final ThingRequestDto requestDto) {
             return requestDto.getName();
+        }
+
+        @PostMapping("/test/commands")
+        String createThing(@RequestParam final String name, @RequestParam final String brand) {
+            return createThingUseCase.createThing(ThingCommand.builder().name(name).brand(brand).build());
         }
 
         @GetMapping("/test/whoami")

@@ -37,6 +37,12 @@
             <artifactId>kafka-avro-serializer</artifactId>
         </dependency>
 
+        <!-- API seule (sans moteur de validation) : le gestionnaire d'erreurs web référence ses exceptions -->
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
+
         <!-- Outbox + transactions : actives uniquement dans les services qui utilisent MongoDB -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -142,7 +142,7 @@ Toutes les erreurs de tous les services ont la même forme (`application/problem
 | Erreur | Statut | `code` |
 |---|---|---|
 | `BusinessException` de nature `INVALID` / `NOT_FOUND` / `CONFLICT` | 400 / 404 / 409 | celui de l'exception (+ `errors[]` si un champ est désigné) |
-| Bean Validation (`@Valid`) | 400 | `VALIDATION_FAILED` + `errors[]` (`code` = contrainte : `NOT_BLANK`, `SIZE`…) |
+| Bean Validation (`@Valid` sur un DTO ou une commande) | 400 | `VALIDATION_FAILED` + `errors[]` (`code` = contrainte : `NOT_BLANK`, `SIZE`…) |
 | En-tête obligatoire absent | 400 | `MISSING_HEADER` |
 | Paramètre mal formé (ex. UUID invalide) | 400 | `INVALID_PARAMETER` |
 | JSON illisible | 400 | `MALFORMED_REQUEST` |
