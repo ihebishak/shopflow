@@ -24,8 +24,4 @@ class InMemoryProductRepository implements ProductRepository {
     public Optional<Product> findById(final ProductId id) {
         return Optional.ofNullable(products.get(id));
     }
-
-    boolean isEmpty() {
-        return products.isEmpty();
-    }
 }

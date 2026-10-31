@@ -219,12 +219,13 @@ com.shopflow.<service>
   - `@Getter` (accesseurs `getName()`) ; `@RequiredArgsConstructor` pour l'injection par constructeur ;
   - `@Builder` + `@Jacksonized` pour les DTO ; `@EqualsAndHashCode` + `@ToString` pour les objets comparés par valeur (identifiants, montants) ;
   - `@Slf4j` pour les logs ; jamais `@Data` ni `@Setter` (pas de mutation libre).
-- Le domaine garde des **constructeurs privés** et des méthodes de fabrique qui vérifient les règles (`Product.draft(...)`).
+- Le domaine garde des **constructeurs privés** et des méthodes de fabrique (`Product.draft(...)`). Il ne vérifie que les règles qui dépendent de son état (ex. une variante en double) ; le format des champs est vérifié à l'entrée des cas d'usage.
 - Injection **par constructeur** uniquement (jamais `@Autowired` sur un champ) ; paramètres de méthodes publiques en **`final`** dans les adaptateurs web.
 
 **API REST**
 - DTO suffixés **`RequestDto`** (entrée) et **`ResponseDto`** (sortie), sans logique.
-- **Bean Validation** sur les `RequestDto` (`@NotBlank`, `@Size`… avec un message) et `@Valid` dans le contrôleur ; le domaine garde ses propres règles (dernière ligne de défense).
+- **Bean Validation** sur les `RequestDto` (`@NotBlank`, `@Size`… avec un message, repris par Swagger) et `@Valid` dans le contrôleur.
+- Les **commandes** portent les mêmes annotations : `@Valid` sur le paramètre de l'interface du cas d'usage et `@Validated` sur son service les font vérifier à chaque appel, quelle que soit l'entrée.
 - Le contrôleur implémente une interface **`…ControllerDocumentation`** qui porte les annotations OpenAPI (`@Tag`, `@Operation`) : le contrôleur reste lisible.
 - `consumes` / `produces` explicites (`application/json`) ; `@ResponseStatus` pour le code de succès, `ResponseEntity` seulement quand il faut des en-têtes (ex. `Location`).
 

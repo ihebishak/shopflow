@@ -12,7 +12,7 @@ import lombok.extern.jackson.Jacksonized;
 /**
  * Corps JSON de {@code POST /api/v1/seller/products}.
  * <p>
- * Validé dès l'entrée de l'API ; les limites reprennent celles du domaine, qui garde ses propres vérifications.
+ * Validé dès l'entrée de l'API ; Swagger affiche ces règles, que le cas d'usage revérifie sur sa commande.
  */
 @Getter
 @Builder

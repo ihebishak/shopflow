@@ -2,7 +2,6 @@ package com.shopflow.catalog.application.service;
 
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
 import com.shopflow.catalog.application.spi.ProductEventPublisher;
-import com.shopflow.catalog.domain.InvalidProductException;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductStatus;
 import com.shopflow.catalog.domain.SellerId;
@@ -16,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
  * Le cas d'usage avec de faux adaptateurs en mémoire : ni MongoDB, ni Kafka, ni Spring.
@@ -57,21 +55,6 @@ class CreateProductServiceTest {
 
         // THEN
         assertThat(productEventPublisher.announced).containsExactly(product);
-    }
-
-    @Test
-    @DisplayName("SHOULD save and announce nothing WHEN a rule is broken")
-    void shouldSaveAndAnnounceNothingWhenRuleIsBroken() {
-        // GIVEN
-        CreateProductCommand command = airMaxCommand(" ");
-
-        // WHEN
-        Throwable error = catchThrowable(() -> createProductService.createProduct(command));
-
-        // THEN
-        assertThat(error).isInstanceOf(InvalidProductException.class);
-        assertThat(productRepository.isEmpty()).isTrue();
-        assertThat(productEventPublisher.announced).isEmpty();
     }
 
     private static CreateProductCommand airMaxCommand(final String name) {
