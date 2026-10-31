@@ -1,5 +1,6 @@
 package com.shopflow.catalog.domain;
 
+import com.shopflow.kernel.error.ErrorKind;
 import com.shopflow.kernel.id.UuidV7;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -88,7 +89,10 @@ class ProductTest {
 
         // THEN
         assertThat(error).isInstanceOf(InvalidProductException.class).hasMessage("name is required");
-        assertThat(((InvalidProductException) error).getField()).isEqualTo("name");
+        InvalidProductException invalidProduct = (InvalidProductException) error;
+        assertThat(invalidProduct.getField()).isEqualTo("name");
+        assertThat(invalidProduct.getCode()).isEqualTo("INVALID_PRODUCT");
+        assertThat(invalidProduct.getKind()).isEqualTo(ErrorKind.INVALID);
     }
 
     @Test
@@ -164,7 +168,8 @@ class ProductTest {
         Throwable error = catchThrowable(() -> new SellerId(" "));
 
         // THEN
-        assertThat(error).isInstanceOf(IllegalArgumentException.class).hasMessage("Seller id must not be blank");
+        assertThat(error).isInstanceOf(InvalidSellerIdException.class).hasMessage("Seller id must not be blank");
+        assertThat(((InvalidSellerIdException) error).getCode()).isEqualTo("INVALID_SELLER_ID");
     }
 
     private static Product draftNamed(final String name) {

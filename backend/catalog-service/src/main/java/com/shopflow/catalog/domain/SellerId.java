@@ -14,10 +14,13 @@ public final class SellerId {
 
     private final String value;
 
+    /**
+     * @throws InvalidSellerIdException si l'identifiant est vide
+     */
     public SellerId(final String value) {
         Objects.requireNonNull(value, "value");
         if (value.isBlank()) {
-            throw new IllegalArgumentException("Seller id must not be blank");
+            throw new InvalidSellerIdException();
         }
         this.value = value;
     }

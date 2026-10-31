@@ -1,10 +1,12 @@
 package com.shopflow.catalog.infrastructure.web.controller;
 
 import com.shopflow.catalog.application.api.CreateProductUseCase;
-import com.shopflow.catalog.application.api.FindSellerProductUseCase;
+import com.shopflow.catalog.application.api.GetSellerProductUseCase;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
+import com.shopflow.catalog.domain.InvalidProductException;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
+import com.shopflow.catalog.domain.ProductNotFoundException;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.infrastructure.web.mapper.ProductRestMapperImpl;
 import org.junit.jupiter.api.DisplayName;
@@ -17,21 +19,21 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Le contrôleur seul (couche HTTP) : les cas d'usage sont simulés, ni MongoDB ni Kafka.
+ * Le gestionnaire d'erreurs du starter est actif : les réponses d'erreur sont celles du vrai service.
  */
 @WebMvcTest(SellerProductController.class)
 @Import(ProductRestMapperImpl.class)
@@ -50,7 +52,7 @@ class SellerProductControllerTest {
     private CreateProductUseCase createProductUseCase;
 
     @MockitoBean
-    private FindSellerProductUseCase findSellerProductUseCase;
+    private GetSellerProductUseCase getSellerProductUseCase;
 
     @Test
     @DisplayName("SHOULD return 201 with the location and the product WHEN the product is valid")
@@ -71,8 +73,8 @@ class SellerProductControllerTest {
     }
 
     @Test
-    @DisplayName("SHOULD return 400 without calling the use case WHEN the name is blank")
-    void shouldReturn400WhenNameIsBlank() throws Exception {
+    @DisplayName("SHOULD return 400 VALIDATION_FAILED naming the field, without calling the use case, WHEN the name is blank")
+    void shouldReturn400WithFieldWhenNameIsBlank() throws Exception {
         // GIVEN
         String blankName = """
                 { "name": " ", "brand": "Nike", "category": "sneakers" }
@@ -81,16 +83,48 @@ class SellerProductControllerTest {
         // WHEN / THEN
         mockMvc.perform(post(PRODUCTS).header(SellerProductController.SELLER_HEADER, "seller-karim")
                         .contentType(MediaType.APPLICATION_JSON).content(blankName))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[0].field").value("name"))
+                .andExpect(jsonPath("$.errors[0].code").value("NOT_BLANK"))
+                .andExpect(jsonPath("$.errors[0].message").value("name is required"));
         verify(createProductUseCase, never()).createProduct(any());
     }
 
     @Test
-    @DisplayName("SHOULD return 400 WHEN the seller header is missing")
+    @DisplayName("SHOULD return 400 INVALID_PRODUCT naming the field WHEN a domain rule is broken")
+    void shouldReturn400WithFieldWhenDomainRuleIsBroken() throws Exception {
+        // GIVEN
+        when(createProductUseCase.createProduct(any(CreateProductCommand.class)))
+                .thenThrow(new InvalidProductException("brand", "brand must be at most 60 characters"));
+
+        // WHEN / THEN
+        mockMvc.perform(post(PRODUCTS).header(SellerProductController.SELLER_HEADER, "seller-karim")
+                        .contentType(MediaType.APPLICATION_JSON).content(AIR_MAX_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PRODUCT"))
+                .andExpect(jsonPath("$.errors[0].field").value("brand"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 MISSING_HEADER WHEN the seller header is missing")
     void shouldReturn400WhenSellerHeaderIsMissing() throws Exception {
         // WHEN / THEN
         mockMvc.perform(post(PRODUCTS).contentType(MediaType.APPLICATION_JSON).content(AIR_MAX_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MISSING_HEADER"));
+        verify(createProductUseCase, never()).createProduct(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 INVALID_SELLER_ID WHEN the seller header is blank")
+    void shouldReturn400WhenSellerHeaderIsBlank() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(post(PRODUCTS).header(SellerProductController.SELLER_HEADER, "   ")
+                        .contentType(MediaType.APPLICATION_JSON).content(AIR_MAX_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SELLER_ID"));
         verify(createProductUseCase, never()).createProduct(any());
     }
 
@@ -99,7 +133,7 @@ class SellerProductControllerTest {
     void shouldReturn200WhenSellerReadsOwnProduct() throws Exception {
         // GIVEN
         Product airMax = airMaxOf(KARIM);
-        when(findSellerProductUseCase.findSellerProduct(KARIM, airMax.getId())).thenReturn(Optional.of(airMax));
+        when(getSellerProductUseCase.getSellerProduct(KARIM, airMax.getId())).thenReturn(airMax);
 
         // WHEN / THEN
         mockMvc.perform(get(PRODUCTS + "/" + airMax.getId()).header(SellerProductController.SELLER_HEADER, "seller-karim"))
@@ -108,15 +142,19 @@ class SellerProductControllerTest {
     }
 
     @Test
-    @DisplayName("SHOULD return 404 WHEN the product is not found for this seller")
+    @DisplayName("SHOULD return 404 PRODUCT_NOT_FOUND WHEN the product is not found for this seller")
     void shouldReturn404WhenProductIsNotFound() throws Exception {
         // GIVEN
         ProductId unknown = ProductId.newId();
-        when(findSellerProductUseCase.findSellerProduct(eq(KARIM), any(ProductId.class))).thenReturn(Optional.empty());
+        when(getSellerProductUseCase.getSellerProduct(KARIM, unknown)).thenThrow(new ProductNotFoundException(unknown));
 
         // WHEN / THEN
         mockMvc.perform(get(PRODUCTS + "/" + unknown).header(SellerProductController.SELLER_HEADER, "seller-karim"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("PRODUCT_NOT_FOUND"))
+                .andExpect(jsonPath("$.detail").value("Product " + unknown + " not found"))
+                .andExpect(jsonPath("$.instance").value(PRODUCTS + "/" + unknown));
     }
 
     private static Product airMaxOf(final SellerId sellerId) {

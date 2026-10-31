@@ -1,7 +1,7 @@
 package com.shopflow.catalog.infrastructure.web.controller;
 
 import com.shopflow.catalog.application.api.CreateProductUseCase;
-import com.shopflow.catalog.application.api.FindSellerProductUseCase;
+import com.shopflow.catalog.application.api.GetSellerProductUseCase;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
@@ -11,6 +11,7 @@ import com.shopflow.catalog.infrastructure.web.mapper.ProductRestMapper;
 import com.shopflow.catalog.infrastructure.web.swagger.SellerProductControllerDocumentation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -27,6 +29,7 @@ import java.util.UUID;
 
 /**
  * API des produits côté vendeur : convertit (mapper) et délègue aux cas d'usage, sans logique métier.
+ * Les erreurs sont transformées en Problem Details par le gestionnaire du starter.
  * <p>
  * Le vendeur est identifié par l'en-tête {@code X-Seller-Id}, en attendant Keycloak (phase 2).
  */
@@ -38,7 +41,7 @@ public class SellerProductController implements SellerProductControllerDocumenta
     public static final String SELLER_HEADER = "X-Seller-Id";
 
     private final CreateProductUseCase createProductUseCase;
-    private final FindSellerProductUseCase findSellerProductUseCase;
+    private final GetSellerProductUseCase getSellerProductUseCase;
     private final ProductRestMapper productRestMapper;
 
     /** Crée un brouillon : 201 Created, avec l'adresse du produit dans l'en-tête {@code Location}. */
@@ -53,14 +56,13 @@ public class SellerProductController implements SellerProductControllerDocumenta
         return ResponseEntity.created(location).body(productRestMapper.toResponseDto(product));
     }
 
-    /** Un des produits du vendeur : 200, ou 404 s'il n'existe pas ou appartient à un autre vendeur. */
+    /** Un des produits du vendeur. */
     @Override
     @GetMapping(value = "/{productId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ProductResponseDto> getProduct(@RequestHeader(SELLER_HEADER) final String sellerId,
-                                                         @PathVariable final UUID productId) {
-        return findSellerProductUseCase.findSellerProduct(new SellerId(sellerId), new ProductId(productId))
-                .map(productRestMapper::toResponseDto)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @ResponseStatus(HttpStatus.OK)
+    public ProductResponseDto getProduct(@RequestHeader(SELLER_HEADER) final String sellerId,
+                                         @PathVariable final UUID productId) {
+        Product product = getSellerProductUseCase.getSellerProduct(new SellerId(sellerId), new ProductId(productId));
+        return productRestMapper.toResponseDto(product);
     }
 }
