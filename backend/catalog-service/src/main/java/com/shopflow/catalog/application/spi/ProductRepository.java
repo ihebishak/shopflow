@@ -11,7 +11,11 @@ import java.util.Optional;
  */
 public interface ProductRepository {
 
-    /** Crée le produit, ou le remplace s'il existe déjà. */
+    /**
+     * Crée le produit, ou le remplace s'il existe déjà.
+     *
+     * @throws com.shopflow.catalog.domain.ProductModifiedConcurrentlyException si le produit a changé depuis sa lecture
+     */
     void save(Product product);
 
     Optional<Product> findById(ProductId id);

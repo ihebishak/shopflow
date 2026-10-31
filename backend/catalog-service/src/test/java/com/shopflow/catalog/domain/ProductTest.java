@@ -43,6 +43,7 @@ class ProductTest {
         assertThat(product.getCategory()).isEqualTo("sneakers");
         assertThat(product.getDescription()).contains("La réédition du modèle de 1990");
         assertThat(product.getCreatedAt()).isEqualTo(NOW);
+        assertThat(product.getVersion()).isNull();
         assertThat(product.getId().getValue().version()).as("UUID v7").isEqualTo(7);
         assertThat(UuidV7.timestampOf(product.getId().getValue())).isNotNull();
     }
@@ -213,7 +214,7 @@ class ProductTest {
 
     private static Product restoredWith(final Variant... variants) {
         return Product.restore(ProductId.newId(), KARIM, "Air Max 90", "Nike", "sneakers", null, ProductStatus.DRAFT,
-                NOW, List.of(variants));
+                NOW, List.of(variants), 0L);
     }
 
     private static Product draftNamed(final String name) {

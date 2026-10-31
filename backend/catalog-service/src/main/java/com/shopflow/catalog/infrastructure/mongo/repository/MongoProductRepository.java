@@ -3,9 +3,11 @@ package com.shopflow.catalog.infrastructure.mongo.repository;
 import com.shopflow.catalog.application.spi.ProductRepository;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
+import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
 import com.shopflow.catalog.infrastructure.mongo.document.ProductDocument;
 import com.shopflow.catalog.infrastructure.mongo.mapper.ProductDocumentMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -24,7 +26,11 @@ public class MongoProductRepository implements ProductRepository {
 
     @Override
     public void save(final Product product) {
-        mongoTemplate.save(productDocumentMapper.toDocument(product));
+        try {
+            mongoTemplate.save(productDocumentMapper.toDocument(product));
+        } catch (OptimisticLockingFailureException exception) {
+            throw new ProductModifiedConcurrentlyException(product.getId());
+        }
     }
 
     @Override

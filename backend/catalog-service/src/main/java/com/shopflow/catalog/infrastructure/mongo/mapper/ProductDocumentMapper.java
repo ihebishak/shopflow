@@ -38,7 +38,7 @@ public interface ProductDocumentMapper {
                 : document.getVariants().stream().map(this::toDomain).toList();
         return Product.restore(new ProductId(UUID.fromString(document.getId())), new SellerId(document.getSellerId()),
                 document.getName(), document.getBrand(), document.getCategory(), document.getDescription(),
-                document.getStatus(), document.getCreatedAt(), variants);
+                document.getStatus(), document.getCreatedAt(), variants, document.getVersion());
     }
 
     default Variant toDomain(final VariantDocument document) {
