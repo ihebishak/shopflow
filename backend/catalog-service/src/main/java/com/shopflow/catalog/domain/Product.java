@@ -1,10 +1,13 @@
 package com.shopflow.catalog.domain;
 
+import com.shopflow.kernel.money.Money;
 import lombok.AccessLevel;
 import lombok.Getter;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -35,6 +38,10 @@ public final class Product {
 
     private final ProductStatus status;
     private final Instant createdAt;
+
+    /** Modifiable uniquement par {@link #addVariant} : exposée par {@link #getVariants()} en lecture seule. */
+    @Getter(AccessLevel.NONE)
+    private final List<Variant> variants = new ArrayList<>();
 
     private Product(final ProductId id, final SellerId sellerId, final String name, final String brand,
                     final String category, final String description, final ProductStatus status,
@@ -76,8 +83,27 @@ public final class Product {
                 Objects.requireNonNull(status, "status"), Objects.requireNonNull(createdAt, "createdAt"));
     }
 
+    /**
+     * Ajoute une variante au produit.
+     *
+     * @return la variante créée, avec son nouveau SKU
+     * @throws DuplicateVariantException si le produit a déjà cette taille et ce coloris
+     */
+    public Variant addVariant(final String size, final String color, final Money price) {
+        Variant variant = Variant.create(size, color, price);
+        if (variants.stream().anyMatch(variant::hasSameOptionsAs)) {
+            throw new DuplicateVariantException(variant);
+        }
+        variants.add(variant);
+        return variant;
+    }
+
     public Optional<String> getDescription() {
         return Optional.ofNullable(description);
+    }
+
+    public List<Variant> getVariants() {
+        return List.copyOf(variants);
     }
 
     private static String blankToNull(final String value) {
