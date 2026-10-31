@@ -9,6 +9,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Forme d'un produit dans MongoDB (collection {@code products}).
@@ -36,4 +37,7 @@ public class ProductDocument {
 
     private final ProductStatus status;
     private final Instant createdAt;
+
+    /** {@code null} à la lecture des produits enregistrés avant l'arrivée des variantes. */
+    private final List<VariantDocument> variants;
 }

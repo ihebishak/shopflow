@@ -41,11 +41,11 @@ public final class Product {
 
     /** Modifiable uniquement par {@link #addVariant} : exposée par {@link #getVariants()} en lecture seule. */
     @Getter(AccessLevel.NONE)
-    private final List<Variant> variants = new ArrayList<>();
+    private final List<Variant> variants;
 
     private Product(final ProductId id, final SellerId sellerId, final String name, final String brand,
                     final String category, final String description, final ProductStatus status,
-                    final Instant createdAt) {
+                    final Instant createdAt, final List<Variant> variants) {
         this.id = id;
         this.sellerId = sellerId;
         this.name = name;
@@ -54,6 +54,7 @@ public final class Product {
         this.description = description;
         this.status = status;
         this.createdAt = createdAt;
+        this.variants = new ArrayList<>(variants);
     }
 
     /**
@@ -66,7 +67,7 @@ public final class Product {
     public static Product draft(final SellerId sellerId, final String name, final String brand, final String category,
                                 final String description, final Instant now) {
         return new Product(ProductId.newId(), sellerId, name.strip(), brand.strip(), category.strip(),
-                blankToNull(description), ProductStatus.DRAFT, now.truncatedTo(ChronoUnit.MILLIS));
+                blankToNull(description), ProductStatus.DRAFT, now.truncatedTo(ChronoUnit.MILLIS), List.of());
     }
 
     /**
@@ -76,11 +77,12 @@ public final class Product {
      */
     public static Product restore(final ProductId id, final SellerId sellerId, final String name, final String brand,
                                   final String category, final String description, final ProductStatus status,
-                                  final Instant createdAt) {
+                                  final Instant createdAt, final List<Variant> variants) {
         return new Product(Objects.requireNonNull(id, "id"), Objects.requireNonNull(sellerId, "sellerId"),
                 Objects.requireNonNull(name, "name"), Objects.requireNonNull(brand, "brand"),
                 Objects.requireNonNull(category, "category"), description,
-                Objects.requireNonNull(status, "status"), Objects.requireNonNull(createdAt, "createdAt"));
+                Objects.requireNonNull(status, "status"), Objects.requireNonNull(createdAt, "createdAt"),
+                Objects.requireNonNull(variants, "variants"));
     }
 
     /**

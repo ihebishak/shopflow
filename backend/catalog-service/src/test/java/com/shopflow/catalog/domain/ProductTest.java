@@ -11,6 +11,7 @@ import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -182,6 +183,37 @@ class ProductTest {
         // THEN
         assertThat(error).isInstanceOf(UnsupportedOperationException.class);
         assertThat(product.getVariants()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("SHOULD add a variant WHEN the product has been restored")
+    void shouldAddVariantWhenProductHasBeenRestored() {
+        // GIVEN
+        Product product = restoredWith(Variant.restore(Sku.newSku(), "42", "Rouge", PRICE));
+
+        // WHEN
+        product.addVariant("43", "Rouge", PRICE);
+
+        // THEN
+        assertThat(product.getVariants()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("SHOULD refuse the variant WHEN the restored product already has it")
+    void shouldRefuseVariantWhenRestoredProductAlreadyHasIt() {
+        // GIVEN
+        Product product = restoredWith(Variant.restore(Sku.newSku(), "42", "Rouge", PRICE));
+
+        // WHEN
+        Throwable error = catchThrowable(() -> product.addVariant("42", "rouge", PRICE));
+
+        // THEN
+        assertThat(error).isInstanceOf(DuplicateVariantException.class);
+    }
+
+    private static Product restoredWith(final Variant... variants) {
+        return Product.restore(ProductId.newId(), KARIM, "Air Max 90", "Nike", "sneakers", null, ProductStatus.DRAFT,
+                NOW, List.of(variants));
     }
 
     private static Product draftNamed(final String name) {
