@@ -21,11 +21,23 @@ Content-Type: application/json
 GET http://localhost:8101/api/v1/seller/products/{{productId}}
 X-Seller-Id: seller-karim
 
-### Un autre vendeur ne le voit pas (404)
+### Un autre vendeur ne le voit pas (404 PRODUCT_NOT_FOUND)
 GET http://localhost:8101/api/v1/seller/products/{{productId}}
 X-Seller-Id: seller-lea
 
-### Produit invalide, nom vide : 400 (le message d'erreur deviendra clair à l'étape 3.4)
+### Produit introuvable (404 PRODUCT_NOT_FOUND)
+GET http://localhost:8101/api/v1/seller/products/01a19c2e-7b4f-7d10-9c3a-3e5f1b2c4d6e
+X-Seller-Id: seller-karim
+
+### Identifiant mal formé (400 INVALID_PARAMETER)
+GET http://localhost:8101/api/v1/seller/products/not-a-uuid
+X-Seller-Id: seller-karim
+
+### Vendeur vide (400 INVALID_SELLER_ID)
+GET http://localhost:8101/api/v1/seller/products/{{productId}}
+X-Seller-Id:
+
+### Produit invalide, nom vide (400 VALIDATION_FAILED, avec le champ dans errors[])
 POST http://localhost:8101/api/v1/seller/products
 X-Seller-Id: seller-karim
 Content-Type: application/json

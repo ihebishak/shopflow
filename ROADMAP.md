@@ -92,7 +92,7 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 - ✅ 3.3g catalog-service, MongoDB : `ProductDocument` en classe, mapper MapStruct
 - ✅ 3.3h Swagger (springdoc-openapi) : page Swagger UI, interfaces `…ControllerDocumentation`
 - ✅ 3.4a Socle des erreurs Problem Details (RFC 9457) : `BusinessException` (`shared-kernel`) + gestionnaire automatique (starter)
-- ⬜ 3.4b Erreurs métier du catalogue (`PRODUCT_NOT_FOUND`, `INVALID_PRODUCT`…), documentées dans Swagger
+- ✅ 3.4b Erreurs métier du catalogue (`PRODUCT_NOT_FOUND`, `INVALID_PRODUCT`…), documentées dans Swagger
 - ⬜ 3.5 Événement `ProductCreated` publié via l'outbox (visible dans Kafka UI)
 - ⬜ 3.6 Règles ArchUnit de l'architecture hexagonale
 - ⬜ 3.7 Variantes (pointure × coloris, SKU, prix) + `ProductVariantAdded`

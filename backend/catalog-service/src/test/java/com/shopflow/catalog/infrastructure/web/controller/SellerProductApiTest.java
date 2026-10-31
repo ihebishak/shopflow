@@ -1,5 +1,6 @@
 package com.shopflow.catalog.infrastructure.web.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +13,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.testcontainers.containers.MongoDBContainer;
@@ -68,7 +70,8 @@ class SellerProductApiTest {
         ResponseEntity<ProductResponseDto> created = createAirMax("seller-karim");
 
         // WHEN
-        ResponseEntity<ProductResponseDto> read = getProduct(created.getHeaders().getLocation(), "seller-karim");
+        ResponseEntity<ProductResponseDto> read = restTemplate.exchange(created.getHeaders().getLocation().getPath(),
+                HttpMethod.GET, new HttpEntity<>(sellerHeader("seller-karim")), ProductResponseDto.class);
 
         // THEN
         assertThat(read.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -76,42 +79,47 @@ class SellerProductApiTest {
     }
 
     @Test
-    @DisplayName("SHOULD return 404 WHEN another seller reads the product")
+    @DisplayName("SHOULD return 404 PRODUCT_NOT_FOUND WHEN another seller reads the product")
     void shouldReturn404WhenAnotherSellerReadsProduct() {
         // GIVEN
-        ResponseEntity<ProductResponseDto> created = createAirMax("seller-karim");
+        URI location = createAirMax("seller-karim").getHeaders().getLocation();
 
         // WHEN
-        ResponseEntity<ProductResponseDto> read = getProduct(created.getHeaders().getLocation(), "seller-lea");
+        ResponseEntity<JsonNode> read = getProblem(location.getPath(), "seller-lea");
 
         // THEN
         assertThat(read.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(read.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(read.getBody().get("code").asText()).isEqualTo("PRODUCT_NOT_FOUND");
     }
 
     @Test
-    @DisplayName("SHOULD return 404 WHEN the product does not exist")
+    @DisplayName("SHOULD return 404 PRODUCT_NOT_FOUND WHEN the product does not exist")
     void shouldReturn404WhenProductDoesNotExist() {
         // WHEN
-        ResponseEntity<ProductResponseDto> read =
-                getProduct(URI.create(PRODUCTS + "/" + UUID.randomUUID()), "seller-karim");
+        ResponseEntity<JsonNode> read = getProblem(PRODUCTS + "/" + UUID.randomUUID(), "seller-karim");
 
         // THEN
         assertThat(read.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(read.getBody().get("code").asText()).isEqualTo("PRODUCT_NOT_FOUND");
+        assertThat(read.getBody().get("correlationId").asText()).isNotBlank();
     }
 
     @Test
-    @DisplayName("SHOULD return 400 WHEN the name is blank")
+    @DisplayName("SHOULD return 400 VALIDATION_FAILED naming the field WHEN the name is blank")
     void shouldReturn400WhenNameIsBlank() {
         // GIVEN
         CreateProductRequestDto requestDto = CreateProductRequestDto.builder()
                 .name(" ").brand("Nike").category("sneakers").build();
 
         // WHEN
-        ResponseEntity<String> response = restTemplate.exchange(PRODUCTS, HttpMethod.POST,
-                new HttpEntity<>(requestDto, sellerHeader("seller-karim")), String.class);
+        ResponseEntity<JsonNode> response = restTemplate.exchange(PRODUCTS, HttpMethod.POST,
+                new HttpEntity<>(requestDto, sellerHeader("seller-karim")), JsonNode.class);
 
         // THEN
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("VALIDATION_FAILED");
+        assertThat(response.getBody().get("errors").get(0).get("field").asText()).isEqualTo("name");
     }
 
     private ResponseEntity<ProductResponseDto> createAirMax(final String sellerId) {
@@ -122,9 +130,8 @@ class SellerProductApiTest {
                 ProductResponseDto.class);
     }
 
-    private ResponseEntity<ProductResponseDto> getProduct(final URI location, final String sellerId) {
-        return restTemplate.exchange(location.getPath(), HttpMethod.GET, new HttpEntity<>(sellerHeader(sellerId)),
-                ProductResponseDto.class);
+    private ResponseEntity<JsonNode> getProblem(final String path, final String sellerId) {
+        return restTemplate.exchange(path, HttpMethod.GET, new HttpEntity<>(sellerHeader(sellerId)), JsonNode.class);
     }
 
     private static HttpHeaders sellerHeader(final String sellerId) {
