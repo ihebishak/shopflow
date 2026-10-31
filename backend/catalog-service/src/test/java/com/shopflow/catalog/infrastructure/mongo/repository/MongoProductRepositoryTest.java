@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.testcontainers.containers.MongoDBContainer;
@@ -255,6 +256,27 @@ class MongoProductRepositoryTest {
         assertThat(((ProductModifiedConcurrentlyException) error).getCode()).isEqualTo("PRODUCT_MODIFIED_CONCURRENTLY");
         Product saved = mongoProductRepository.findById(airMax.getId()).orElseThrow();
         assertThat(saved.getVariants()).extracting(Variant::getSize).containsExactly("42", "43");
+    }
+
+    @Test
+    @DisplayName("SHOULD not report a concurrent change WHEN the save fails for another reason")
+    void shouldNotReportConcurrentChangeWhenSaveFailsForAnotherReason() {
+        // GIVEN
+        ProductId id = ProductId.newId();
+        mongoTemplate.getCollection("products").insertOne(new Document("_id", id.toString())
+                .append("sellerId", "seller-karim")
+                .append("name", "Air Max 90 Infrared")
+                .append("brand", "Nike")
+                .append("category", "sneakers")
+                .append("status", "DRAFT")
+                .append("createdAt", Date.from(Instant.parse("2026-10-31T10:00:00Z"))));
+        Product withoutVersion = mongoProductRepository.findById(id).orElseThrow();
+
+        // WHEN
+        Throwable error = catchThrowable(() -> mongoProductRepository.save(withoutVersion));
+
+        // THEN
+        assertThat(error).isInstanceOf(DuplicateKeyException.class);
     }
 
     private static Product draftAirMax() {
