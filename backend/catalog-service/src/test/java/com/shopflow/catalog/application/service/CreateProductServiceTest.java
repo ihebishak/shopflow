@@ -1,6 +1,7 @@
 package com.shopflow.catalog.application.service;
 
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
+import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.domain.InvalidProductException;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductStatus;
@@ -11,12 +12,14 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
- * Le cas d'usage avec un faux dépôt en mémoire : ni MongoDB ni Spring, quelques millisecondes.
+ * Le cas d'usage avec de faux adaptateurs en mémoire : ni MongoDB, ni Kafka, ni Spring.
  */
 class CreateProductServiceTest {
 
@@ -24,15 +27,15 @@ class CreateProductServiceTest {
     private static final SellerId KARIM = new SellerId("seller-karim");
 
     private final InMemoryProductRepository productRepository = new InMemoryProductRepository();
+    private final RecordingProductEventPublisher productEventPublisher = new RecordingProductEventPublisher();
     private final CreateProductService createProductService =
-            new CreateProductService(productRepository, Clock.fixed(NOW, ZoneOffset.UTC));
+            new CreateProductService(productRepository, productEventPublisher, Clock.fixed(NOW, ZoneOffset.UTC));
 
     @Test
     @DisplayName("SHOULD create a draft at the clock's time and save it WHEN the command is valid")
     void shouldCreateAndSaveDraftWhenCommandIsValid() {
         // GIVEN
-        CreateProductCommand command = CreateProductCommand.builder()
-                .sellerId(KARIM).name("Air Max 90 Infrared").brand("Nike").category("sneakers").build();
+        CreateProductCommand command = airMaxCommand("Air Max 90 Infrared");
 
         // WHEN
         Product product = createProductService.createProduct(command);
@@ -44,11 +47,23 @@ class CreateProductServiceTest {
     }
 
     @Test
-    @DisplayName("SHOULD save nothing WHEN a rule is broken")
-    void shouldSaveNothingWhenRuleIsBroken() {
+    @DisplayName("SHOULD announce the product WHEN it has been created")
+    void shouldAnnounceProductWhenCreated() {
         // GIVEN
-        CreateProductCommand command = CreateProductCommand.builder()
-                .sellerId(KARIM).name(" ").brand("Nike").category("sneakers").build();
+        CreateProductCommand command = airMaxCommand("Air Max 90 Infrared");
+
+        // WHEN
+        Product product = createProductService.createProduct(command);
+
+        // THEN
+        assertThat(productEventPublisher.announced).containsExactly(product);
+    }
+
+    @Test
+    @DisplayName("SHOULD save and announce nothing WHEN a rule is broken")
+    void shouldSaveAndAnnounceNothingWhenRuleIsBroken() {
+        // GIVEN
+        CreateProductCommand command = airMaxCommand(" ");
 
         // WHEN
         Throwable error = catchThrowable(() -> createProductService.createProduct(command));
@@ -56,5 +71,21 @@ class CreateProductServiceTest {
         // THEN
         assertThat(error).isInstanceOf(InvalidProductException.class);
         assertThat(productRepository.isEmpty()).isTrue();
+        assertThat(productEventPublisher.announced).isEmpty();
+    }
+
+    private static CreateProductCommand airMaxCommand(final String name) {
+        return CreateProductCommand.builder().sellerId(KARIM).name(name).brand("Nike").category("sneakers").build();
+    }
+
+    /** Faux publieur : retient les produits annoncés. */
+    private static final class RecordingProductEventPublisher implements ProductEventPublisher {
+
+        private final List<Product> announced = new ArrayList<>();
+
+        @Override
+        public void publishProductCreated(final Product product) {
+            announced.add(product);
+        }
     }
 }
