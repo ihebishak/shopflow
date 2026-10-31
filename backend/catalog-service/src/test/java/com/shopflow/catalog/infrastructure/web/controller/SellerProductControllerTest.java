@@ -3,7 +3,6 @@ package com.shopflow.catalog.infrastructure.web.controller;
 import com.shopflow.catalog.application.api.CreateProductUseCase;
 import com.shopflow.catalog.application.api.GetSellerProductUseCase;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
-import com.shopflow.catalog.domain.InvalidProductException;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductNotFoundException;
@@ -90,21 +89,6 @@ class SellerProductControllerTest {
                 .andExpect(jsonPath("$.errors[0].code").value("NOT_BLANK"))
                 .andExpect(jsonPath("$.errors[0].message").value("name is required"));
         verify(createProductUseCase, never()).createProduct(any());
-    }
-
-    @Test
-    @DisplayName("SHOULD return 400 INVALID_PRODUCT naming the field WHEN a domain rule is broken")
-    void shouldReturn400WithFieldWhenDomainRuleIsBroken() throws Exception {
-        // GIVEN
-        when(createProductUseCase.createProduct(any(CreateProductCommand.class)))
-                .thenThrow(new InvalidProductException("brand", "brand must be at most 60 characters"));
-
-        // WHEN / THEN
-        mockMvc.perform(post(PRODUCTS).header(SellerProductController.SELLER_HEADER, "seller-karim")
-                        .contentType(MediaType.APPLICATION_JSON).content(AIR_MAX_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_PRODUCT"))
-                .andExpect(jsonPath("$.errors[0].field").value("brand"));
     }
 
     @Test

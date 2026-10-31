@@ -28,8 +28,8 @@ public interface SellerProductControllerDocumentation {
             description = "Le produit naît en brouillon (DRAFT), invisible des clients jusqu'à sa publication.")
     @ApiResponse(responseCode = "201", description = "Produit créé ; son adresse est dans l'en-tête Location.")
     @ApiResponse(responseCode = "400",
-            description = "Requête invalide. Codes : VALIDATION_FAILED, INVALID_PRODUCT, INVALID_SELLER_ID, "
-                    + "MISSING_HEADER, MALFORMED_REQUEST.",
+            description = "Requête invalide. Codes : VALIDATION_FAILED, INVALID_SELLER_ID, MISSING_HEADER, "
+                    + "MALFORMED_REQUEST.",
             content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
     ResponseEntity<ProductResponseDto> createProduct(

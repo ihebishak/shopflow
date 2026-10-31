@@ -1,6 +1,5 @@
 package com.shopflow.catalog.domain;
 
-import com.shopflow.kernel.error.ErrorKind;
 import com.shopflow.kernel.id.UuidV7;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -77,88 +76,6 @@ class ProductTest {
 
         // THEN
         assertThat(product.getDescription()).isEmpty();
-    }
-
-    @ParameterizedTest
-    @NullSource
-    @ValueSource(strings = {"", "   "})
-    @DisplayName("SHOULD refuse the product WHEN the name is missing or blank")
-    void shouldRefuseProductWhenNameIsMissingOrBlank(final String name) {
-        // WHEN
-        Throwable error = catchThrowable(() -> draftNamed(name));
-
-        // THEN
-        assertThat(error).isInstanceOf(InvalidProductException.class).hasMessage("name is required");
-        InvalidProductException invalidProduct = (InvalidProductException) error;
-        assertThat(invalidProduct.getField()).isEqualTo("name");
-        assertThat(invalidProduct.getCode()).isEqualTo("INVALID_PRODUCT");
-        assertThat(invalidProduct.getKind()).isEqualTo(ErrorKind.INVALID);
-    }
-
-    @Test
-    @DisplayName("SHOULD accept the product WHEN the name has exactly 120 characters")
-    void shouldAcceptProductWhenNameHas120Characters() {
-        // WHEN
-        Product product = draftNamed("a".repeat(120));
-
-        // THEN
-        assertThat(product.getName()).hasSize(120);
-    }
-
-    @Test
-    @DisplayName("SHOULD refuse the product WHEN the name is longer than 120 characters")
-    void shouldRefuseProductWhenNameIsLongerThan120Characters() {
-        // WHEN
-        Throwable error = catchThrowable(() -> draftNamed("a".repeat(121)));
-
-        // THEN
-        assertThat(error).isInstanceOf(InvalidProductException.class)
-                .hasMessage("name must be at most 120 characters");
-    }
-
-    @Test
-    @DisplayName("SHOULD refuse the product WHEN the brand is blank")
-    void shouldRefuseProductWhenBrandIsBlank() {
-        // WHEN
-        Throwable error = catchThrowable(() -> Product.draft(KARIM, "Air Max 90", " ", "sneakers", null, NOW));
-
-        // THEN
-        assertThat(error).isInstanceOf(InvalidProductException.class).hasMessage("brand is required");
-    }
-
-    @Test
-    @DisplayName("SHOULD refuse the product WHEN the brand is longer than 60 characters")
-    void shouldRefuseProductWhenBrandIsLongerThan60Characters() {
-        // WHEN
-        Throwable error = catchThrowable(() -> Product.draft(KARIM, "Air Max 90", "b".repeat(61), "sneakers", null, NOW));
-
-        // THEN
-        assertThat(error).isInstanceOf(InvalidProductException.class)
-                .hasMessage("brand must be at most 60 characters");
-    }
-
-    @Test
-    @DisplayName("SHOULD refuse the product WHEN the category is missing")
-    void shouldRefuseProductWhenCategoryIsMissing() {
-        // WHEN
-        Throwable error = catchThrowable(() -> Product.draft(KARIM, "Air Max 90", "Nike", null, null, NOW));
-
-        // THEN
-        assertThat(error).isInstanceOf(InvalidProductException.class).hasMessage("category is required");
-    }
-
-    @Test
-    @DisplayName("SHOULD refuse the product WHEN the description is longer than 2000 characters")
-    void shouldRefuseProductWhenDescriptionIsLongerThan2000Characters() {
-        // GIVEN
-        String description = "d".repeat(2_001);
-
-        // WHEN
-        Throwable error = catchThrowable(() -> Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", description, NOW));
-
-        // THEN
-        assertThat(error).isInstanceOf(InvalidProductException.class)
-                .hasMessage("description must be at most 2000 characters");
     }
 
     @Test

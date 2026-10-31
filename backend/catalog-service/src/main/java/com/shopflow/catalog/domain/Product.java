@@ -12,7 +12,8 @@ import java.util.Optional;
  * Produit d'un vendeur (ex. « Air Max 90 Infrared » de Nike).
  * <p>
  * Aucune dépendance à Spring, MongoDB ou Kafka (Lombok n'agit qu'à la compilation). Un produit ne peut être créé
- * que par {@link #draft}, qui garantit qu'il respecte les règles métier.
+ * que par {@link #draft}. Le format des champs est vérifié à l'entrée des cas d'usage, par les annotations des
+ * commandes : le domaine ne vérifie que ce qui dépend de son état.
  */
 @Getter
 public final class Product {
@@ -54,18 +55,11 @@ public final class Product {
      * @param description facultative
      * @param now         date de création (passée en paramètre pour que les tests puissent la fixer),
      *                    conservée à la milliseconde comme dans MongoDB
-     * @throws InvalidProductException si une règle n'est pas respectée
      */
     public static Product draft(final SellerId sellerId, final String name, final String brand, final String category,
                                 final String description, final Instant now) {
-        Objects.requireNonNull(sellerId, "sellerId");
-        Objects.requireNonNull(now, "now");
-        return new Product(ProductId.newId(), sellerId,
-                required("name", name, NAME_MAX_LENGTH),
-                required("brand", brand, BRAND_MAX_LENGTH),
-                required("category", category, CATEGORY_MAX_LENGTH),
-                optional("description", description, DESCRIPTION_MAX_LENGTH),
-                ProductStatus.DRAFT, now.truncatedTo(ChronoUnit.MILLIS));
+        return new Product(ProductId.newId(), sellerId, name.strip(), brand.strip(), category.strip(),
+                blankToNull(description), ProductStatus.DRAFT, now.truncatedTo(ChronoUnit.MILLIS));
     }
 
     /**
@@ -86,23 +80,7 @@ public final class Product {
         return Optional.ofNullable(description);
     }
 
-    private static String required(final String field, final String value, final int maxLength) {
-        String text = value == null ? "" : value.strip();
-        if (text.isEmpty()) {
-            throw new InvalidProductException(field, field + " is required");
-        }
-        return checkLength(field, text, maxLength);
-    }
-
-    private static String optional(final String field, final String value, final int maxLength) {
-        String text = value == null ? "" : value.strip();
-        return text.isEmpty() ? null : checkLength(field, text, maxLength);
-    }
-
-    private static String checkLength(final String field, final String text, final int maxLength) {
-        if (text.length() > maxLength) {
-            throw new InvalidProductException(field, field + " must be at most " + maxLength + " characters");
-        }
-        return text;
+    private static String blankToNull(final String value) {
+        return value == null || value.isBlank() ? null : value.strip();
     }
 }

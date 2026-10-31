@@ -8,6 +8,7 @@ import com.shopflow.catalog.domain.Product;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import java.time.Clock;
 
@@ -17,6 +18,7 @@ import java.time.Clock;
  * Transactionnel : le produit et l'événement {@code ProductCreated} sont enregistrés ensemble, ou pas du tout.
  */
 @Service
+@Validated
 @RequiredArgsConstructor
 public class CreateProductService implements CreateProductUseCase {
 
