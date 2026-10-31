@@ -35,6 +35,8 @@
         <!-- Lombok : version gérée par Spring Boot (lombok.version) -->
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+        <!-- Branche 2.8 = Spring Boot 3.5 (la 3.x cible Spring Boot 4) -->
+        <springdoc.version>2.8.17</springdoc.version>
     </properties>
 
     <!-- Les sérialiseurs Avro de Confluent ne sont pas publiés sur Maven Central -->
@@ -78,11 +80,24 @@
                 <groupId>io.confluent</groupId>
                 <artifactId>kafka-avro-serializer</artifactId>
                 <version>${confluent.version}</version>
+                <exclusions>
+                    <!-- Ancienne copie (2.1) des annotations Swagger, qui masquerait celle de springdoc
+                         (swagger-annotations-jakarta 2.2, mêmes classes) ; inutile au client Schema Registry -->
+                    <exclusion>
+                        <groupId>io.swagger.core.v3</groupId>
+                        <artifactId>swagger-annotations</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.mapstruct</groupId>
                 <artifactId>mapstruct</artifactId>
                 <version>${mapstruct.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

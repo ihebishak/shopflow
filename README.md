@@ -42,6 +42,7 @@ cd backend
 | Schema Registry | http://localhost:8081 |
 | Mongo Express | http://localhost:8091 |
 | MongoDB (replica set `rs0`) | `mongodb://localhost:27017/?directConnection=true` |
+| Swagger du catalog-service | http://localhost:8101/swagger-ui.html |
 
 ## Licence
 

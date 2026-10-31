@@ -185,6 +185,7 @@ com.shopflow.<service>
     │   ├── dto/request    corps reçus (…RequestDto)
     │   ├── dto/response   corps renvoyés (…ResponseDto)
     │   ├── mapper         mappers MapStruct DTO ↔ application
+    │   ├── config         configuration de la couche web (ex. en-tête OpenAPI)
     │   └── advice         @RestControllerAdvice (erreurs → Problem Details)
     ├── mongo              documents, mappers, implémentations des ports spi
     └── kafka, camunda, stripe…

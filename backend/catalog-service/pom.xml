@@ -42,6 +42,11 @@
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
         </dependency>
+        <!-- Documentation OpenAPI générée depuis le code + page Swagger UI (/swagger-ui.html) -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
         <!-- État de santé : /actuator/health -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
