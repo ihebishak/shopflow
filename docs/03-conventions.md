@@ -208,7 +208,7 @@ com.shopflow.<service>
 
 - Sens des dépendances : `infrastructure` → `application` → `domain`, **jamais l'inverse**.
 - `application` peut utiliser Spring (`@Service`, `@Transactional`), **jamais** MongoDB, Kafka ni le web.
-- Règles vérifiées automatiquement par des **tests ArchUnit** (règles partagées via le starter).
+- Règles vérifiées automatiquement par des **tests ArchUnit**, partagées par le module `shopflow-test-support` (dépendance de **test**) : chaque service les applique dans un `ArchitectureTest` de 3 lignes. Ce qui n'existe plus dans le code compilé (`@Data`, `@Setter`, paramètres `final`, format des tests) n'est pas vérifiable ainsi.
 - Camunda et Axon sont des **détails d'infrastructure** : le domaine ne les connaît pas.
 
 ## 9. Code Java

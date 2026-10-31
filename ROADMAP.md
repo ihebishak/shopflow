@@ -94,7 +94,7 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 - ✅ 3.4a Socle des erreurs Problem Details (RFC 9457) : `BusinessException` (`shared-kernel`) + gestionnaire automatique (starter)
 - ✅ 3.4b Erreurs métier du catalogue (`PRODUCT_NOT_FOUND`, `INVALID_PRODUCT`…), documentées dans Swagger
 - ✅ 3.5 Événement `ProductCreated` publié via l'outbox (visible dans Kafka UI)
-- ⬜ 3.6 Règles ArchUnit de l'architecture hexagonale
+- ✅ 3.6 Règles ArchUnit (architecture hexagonale, conventions ShopFlow, hygiène) dans le module `shopflow-test-support`, appliquées au catalogue
 - ⬜ 3.7 Variantes (pointure × coloris, SKU, prix) + `ProductVariantAdded`
 - ⬜ 3.8 Modifier un produit, changer un prix (`ProductUpdated`, `ProductPriceChanged`)
 - ⬜ 3.9 Publier / dépublier (`ProductPublished`, `ProductUnpublished`), pas de publication sans variante
