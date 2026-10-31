@@ -3,6 +3,10 @@ package com.shopflow.starter.web;
 import com.shopflow.kernel.error.BusinessException;
 import com.shopflow.kernel.error.ErrorKind;
 import com.shopflow.starter.correlation.Correlation;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ElementKind;
+import jakarta.validation.Path;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -24,10 +28,13 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.net.URI;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * Transforme toutes les erreurs en réponses Problem Details (RFC 9457) de même forme dans tous les services :
@@ -51,6 +58,7 @@ public class ProblemDetailsExceptionHandler extends ResponseEntityExceptionHandl
     private static final String CODE = "code";
     private static final String CORRELATION_ID = "correlationId";
     private static final String ERRORS = "errors";
+    private static final String FIELD = "field";
 
     /** Erreur métier : statut selon sa nature, avec son code et, le cas échéant, le champ en cause. */
     @ExceptionHandler(BusinessException.class)
@@ -87,6 +95,20 @@ public class ProblemDetailsExceptionHandler extends ResponseEntityExceptionHandl
                 .map(error -> fieldError(error.getField(), toUpperSnakeCase(error.getCode()), error.getDefaultMessage()))
                 .toList());
         return handleExceptionInternal(exception, problem, headers, HttpStatus.BAD_REQUEST, request);
+    }
+
+    /** Commande refusée à l'entrée d'un cas d'usage : même réponse que pour un DTO invalide, triée par champ. */
+    @ExceptionHandler(ConstraintViolationException.class)
+    ResponseEntity<Object> handleConstraintViolation(final ConstraintViolationException exception,
+                                                     final WebRequest request) {
+        List<Map<String, String>> errors = exception.getConstraintViolations().stream()
+                .map(violation -> fieldError(fieldOf(violation), codeOf(violation), violation.getMessage()))
+                .sorted(Comparator.comparing(error -> error.get(FIELD)))
+                .toList();
+        ProblemDetail problem = problem(HttpStatus.BAD_REQUEST, VALIDATION_FAILED,
+                "The request contains " + errors.size() + " invalid field(s).");
+        problem.setProperty(ERRORS, errors);
+        return handleExceptionInternal(exception, problem, new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
     }
 
     /** En-tête obligatoire absent (ex. {@code X-Seller-Id}). */
@@ -166,10 +188,23 @@ public class ProblemDetailsExceptionHandler extends ResponseEntityExceptionHandl
 
     private static Map<String, String> fieldError(final String field, final String code, final String message) {
         Map<String, String> error = new LinkedHashMap<>();
-        error.put("field", field);
+        error.put(FIELD, field);
         error.put(CODE, code);
         error.put("message", message);
         return error;
+    }
+
+    /** {@code createProduct.command.name} → {@code name} : le front ne connaît que les champs, pas les méthodes. */
+    private static String fieldOf(final ConstraintViolation<?> violation) {
+        return StreamSupport.stream(violation.getPropertyPath().spliterator(), false)
+                .filter(node -> node.getKind() == ElementKind.PROPERTY)
+                .map(Path.Node::getName)
+                .collect(Collectors.joining("."));
+    }
+
+    /** Le nom de l'annotation, comme pour un DTO : {@code @NotBlank} → {@code NOT_BLANK}. */
+    private static String codeOf(final ConstraintViolation<?> violation) {
+        return toUpperSnakeCase(violation.getConstraintDescriptor().getAnnotation().annotationType().getSimpleName());
     }
 
     private static HttpStatus statusOf(final ErrorKind kind) {
