@@ -110,8 +110,39 @@ public final class Product {
         return toBuilder().variants(List.copyOf(newVariants)).build();
     }
 
+    /**
+     * Modifie les informations du produit, nettoyées comme à la création.
+     *
+     * @param description facultative : l'omettre l'efface
+     * @return le produit avec ces informations
+     */
+    public Product update(final String name, final String brand, final String category, final String description) {
+        return toBuilder().name(name.strip()).brand(brand.strip()).category(category.strip())
+                .description(blankToNull(description)).build();
+    }
+
+    /**
+     * @param before le produit avant sa modification
+     * @return les noms des informations qui diffèrent, vide si rien n'a changé
+     */
+    public List<String> changedFieldsSince(final Product before) {
+        List<String> changedFields = new ArrayList<>();
+        addIfChanged(changedFields, "name", before.name, name);
+        addIfChanged(changedFields, "brand", before.brand, brand);
+        addIfChanged(changedFields, "category", before.category, category);
+        addIfChanged(changedFields, "description", before.description, description);
+        return List.copyOf(changedFields);
+    }
+
     public Optional<String> getDescription() {
         return Optional.ofNullable(description);
+    }
+
+    private static void addIfChanged(final List<String> changedFields, final String field, final String oldValue,
+                                     final String newValue) {
+        if (!Objects.equals(oldValue, newValue)) {
+            changedFields.add(field);
+        }
     }
 
     private static String blankToNull(final String value) {

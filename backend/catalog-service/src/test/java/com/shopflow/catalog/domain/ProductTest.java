@@ -242,6 +242,157 @@ class ProductTest {
         assertThat(product.getVariants()).containsExactly(existing);
     }
 
+    @Test
+    @DisplayName("SHOULD change only the description and report it WHEN only the description differs")
+    void shouldReportDescriptionWhenOnlyDescriptionDiffers() {
+        // GIVEN
+        Product product = airMax();
+
+        // WHEN
+        Product updated = product.update("Air Max 90", "Nike", "sneakers", "La réédition de 1990");
+
+        // THEN
+        assertThat(updated.changedFieldsSince(product)).containsExactly("description");
+        assertThat(updated.getDescription()).contains("La réédition de 1990");
+        assertThat(updated.getName()).isEqualTo("Air Max 90");
+        assertThat(updated.getBrand()).isEqualTo("Nike");
+        assertThat(updated.getCategory()).isEqualTo("sneakers");
+    }
+
+    @Test
+    @DisplayName("SHOULD change every field and report them all WHEN every field differs")
+    void shouldReportEveryFieldWhenEveryFieldDiffers() {
+        // GIVEN
+        Product product = airMax();
+
+        // WHEN
+        Product updated = product.update("Stan Smith", "Adidas", "tennis", "Un classique");
+
+        // THEN
+        assertThat(updated.changedFieldsSince(product)).containsExactly("name", "brand", "category", "description");
+        assertThat(updated.getName()).isEqualTo("Stan Smith");
+        assertThat(updated.getBrand()).isEqualTo("Adidas");
+        assertThat(updated.getCategory()).isEqualTo("tennis");
+        assertThat(updated.getDescription()).contains("Un classique");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "Stan Smith, Nike, sneakers, Réédition, name",
+            "Air Max 90, Adidas, sneakers, Réédition, brand",
+            "Air Max 90, Nike, tennis, Réédition, category"
+    })
+    @DisplayName("SHOULD report only the changed field WHEN one field differs")
+    void shouldReportOnlyChangedFieldWhenOneFieldDiffers(final String name, final String brand, final String category,
+                                                         final String description, final String changedField) {
+        // GIVEN
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", "Réédition", NOW);
+
+        // WHEN
+        Product updated = product.update(name, brand, category, description);
+
+        // THEN
+        assertThat(updated.changedFieldsSince(product)).containsExactly(changedField);
+    }
+
+    @Test
+    @DisplayName("SHOULD report nothing WHEN nothing differs")
+    void shouldReportNothingWhenNothingDiffers() {
+        // GIVEN
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", "Réédition", NOW);
+
+        // WHEN
+        Product updated = product.update("Air Max 90", "Nike", "sneakers", "Réédition");
+
+        // THEN
+        assertThat(updated.changedFieldsSince(product)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("SHOULD strip the fields and report nothing WHEN only surrounding spaces differ")
+    void shouldReportNothingWhenOnlySurroundingSpacesDiffer() {
+        // GIVEN
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", "Réédition", NOW);
+
+        // WHEN
+        Product updated = product.update("  Air Max 90 ", " Nike", "sneakers ", "  Réédition  ");
+
+        // THEN
+        assertThat(updated.changedFieldsSince(product)).isEmpty();
+        assertThat(updated.getName()).isEqualTo("Air Max 90");
+        assertThat(updated.getBrand()).isEqualTo("Nike");
+        assertThat(updated.getCategory()).isEqualTo("sneakers");
+        assertThat(updated.getDescription()).contains("Réédition");
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"", "   "})
+    @DisplayName("SHOULD erase the description and report it WHEN the new description is missing or blank")
+    void shouldEraseDescriptionWhenNewDescriptionIsMissingOrBlank(final String description) {
+        // GIVEN
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", "Réédition", NOW);
+
+        // WHEN
+        Product updated = product.update("Air Max 90", "Nike", "sneakers", description);
+
+        // THEN
+        assertThat(updated.changedFieldsSince(product)).containsExactly("description");
+        assertThat(updated.getDescription()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("SHOULD report nothing WHEN the product still has no description")
+    void shouldReportNothingWhenProductStillHasNoDescription() {
+        // GIVEN
+        Product product = airMax();
+
+        // WHEN
+        Product updated = product.update("Air Max 90", "Nike", "sneakers", "  ");
+
+        // THEN
+        assertThat(updated.changedFieldsSince(product)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("SHOULD keep the identity, the status, the date, the variants and the version WHEN the product is updated")
+    void shouldKeepEverythingElseWhenProductIsUpdated() {
+        // GIVEN
+        Variant variant = Variant.restore(Sku.newSku(), "42", "Rouge", PRICE);
+        Product product = restoredWith(variant);
+
+        // WHEN
+        Product updated = product.update("Stan Smith", "Adidas", "tennis", "Un classique");
+
+        // THEN
+        assertThat(updated.getId()).isEqualTo(product.getId());
+        assertThat(updated.getSellerId()).isEqualTo(KARIM);
+        assertThat(updated.getStatus()).isEqualTo(ProductStatus.DRAFT);
+        assertThat(updated.getCreatedAt()).isEqualTo(NOW);
+        assertThat(updated.getVariants()).containsExactly(variant);
+        assertThat(updated.getVersion()).isZero();
+    }
+
+    @Test
+    @DisplayName("SHOULD leave the original untouched WHEN the product is updated")
+    void shouldLeaveOriginalUntouchedWhenProductIsUpdated() {
+        // GIVEN
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", "Réédition", NOW);
+
+        // WHEN
+        product.update("Stan Smith", "Adidas", "tennis", "Un classique");
+
+        // THEN
+        assertThat(product.getName()).isEqualTo("Air Max 90");
+        assertThat(product.getBrand()).isEqualTo("Nike");
+        assertThat(product.getCategory()).isEqualTo("sneakers");
+        assertThat(product.getDescription()).contains("Réédition");
+    }
+
+    private static Product airMax() {
+        return draftNamed("Air Max 90");
+    }
+
     private static Product restoredWith(final Variant... variants) {
         return Product.restore(ProductId.newId(), KARIM, "Air Max 90", "Nike", "sneakers", null, ProductStatus.DRAFT,
                 NOW, List.of(variants), 0L);
