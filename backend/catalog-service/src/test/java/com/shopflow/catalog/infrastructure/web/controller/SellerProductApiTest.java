@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.MoneyResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
@@ -194,6 +195,107 @@ class SellerProductApiTest {
         assertThat(readVariants(product)).isEmpty();
     }
 
+    @Test
+    @DisplayName("SHOULD return and keep the new information WHEN a seller updates a product")
+    void shouldKeepNewInformationWhenSellerUpdatesProduct() {
+        // GIVEN
+        ProductResponseDto airMax = createAirMax("seller-karim").getBody();
+        URI product = URI.create(PRODUCTS + "/" + airMax.getId());
+
+        // WHEN
+        ResponseEntity<ProductResponseDto> updated = updateProduct(product, "seller-karim", ProductResponseDto.class,
+                UpdateProductRequestDto.builder().name("Stan Smith").brand("Adidas").category("tennis")
+                        .description("Le classique du court").build());
+
+        // THEN
+        assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
+        ProductResponseDto body = updated.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.getName()).isEqualTo("Stan Smith");
+        assertThat(body.getBrand()).isEqualTo("Adidas");
+        assertThat(body.getCategory()).isEqualTo("tennis");
+        assertThat(body.getDescription()).isEqualTo("Le classique du court");
+        assertThat(body.getId()).isEqualTo(airMax.getId());
+        assertThat(body.getSellerId()).isEqualTo(airMax.getSellerId());
+        assertThat(body.getStatus()).isEqualTo(airMax.getStatus());
+        assertThat(body.getCreatedAt()).isEqualTo(airMax.getCreatedAt());
+        assertThat(readProduct(product)).isEqualTo(body);
+    }
+
+    @Test
+    @DisplayName("SHOULD keep the variants WHEN a seller updates a product")
+    void shouldKeepVariantsWhenSellerUpdatesProduct() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        VariantResponseDto variant = addVariant(product, "seller-karim", "42", VariantResponseDto.class).getBody();
+
+        // WHEN
+        ResponseEntity<ProductResponseDto> updated = updateProduct(product, "seller-karim", ProductResponseDto.class,
+                airMaxUpdate().name("Air Max 90 OG").build());
+
+        // THEN
+        assertThat(updated.getBody().getVariants()).containsExactly(variant);
+        assertThat(readVariants(product)).containsExactly(variant);
+    }
+
+    @Test
+    @DisplayName("SHOULD erase the description WHEN a seller leaves it out of the update")
+    void shouldEraseDescriptionWhenSellerLeavesItOut() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+
+        // WHEN
+        updateProduct(product, "seller-karim", ProductResponseDto.class, airMaxUpdate().description(null).build());
+
+        // THEN
+        assertThat(readProduct(product).getDescription()).isNull();
+    }
+
+    @Test
+    @DisplayName("SHOULD return the product as it was WHEN a seller sends the same information")
+    void shouldReturnSameProductWhenSellerSendsSameInformation() {
+        // GIVEN
+        ResponseEntity<ProductResponseDto> created = createAirMax("seller-karim");
+        URI product = created.getHeaders().getLocation();
+
+        // WHEN
+        ResponseEntity<ProductResponseDto> updated = updateProduct(product, "seller-karim", ProductResponseDto.class,
+                airMaxUpdate().build());
+
+        // THEN
+        assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(updated.getBody()).isEqualTo(created.getBody());
+        assertThat(readProduct(product)).isEqualTo(created.getBody());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 PRODUCT_NOT_FOUND and change nothing WHEN another seller updates the product")
+    void shouldReturn404WhenAnotherSellerUpdatesProduct() {
+        // GIVEN
+        ResponseEntity<ProductResponseDto> created = createAirMax("seller-karim");
+        URI product = created.getHeaders().getLocation();
+
+        // WHEN
+        ResponseEntity<JsonNode> response = updateProduct(product, "seller-lea", JsonNode.class,
+                airMaxUpdate().name("Air Max piratée").build());
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("PRODUCT_NOT_FOUND");
+        assertThat(readProduct(product)).isEqualTo(created.getBody());
+    }
+
+    private <T> ResponseEntity<T> updateProduct(final URI product, final String sellerId, final Class<T> responseType,
+                                                final UpdateProductRequestDto requestDto) {
+        return restTemplate.exchange(product.getPath(), HttpMethod.PUT,
+                new HttpEntity<>(requestDto, sellerHeader(sellerId)), responseType);
+    }
+
+    private static UpdateProductRequestDto.UpdateProductRequestDtoBuilder airMaxUpdate() {
+        return UpdateProductRequestDto.builder().name("Air Max 90 Infrared").brand("Nike").category("sneakers")
+                .description("La réédition du modèle de 1990");
+    }
+
     private <T> ResponseEntity<T> addVariant(final URI product, final String sellerId, final String size,
                                              final Class<T> responseType) {
         AddVariantRequestDto requestDto = AddVariantRequestDto.builder().size(size).color("Rouge")
@@ -203,8 +305,12 @@ class SellerProductApiTest {
     }
 
     private List<VariantResponseDto> readVariants(final URI product) {
+        return readProduct(product).getVariants();
+    }
+
+    private ProductResponseDto readProduct(final URI product) {
         return restTemplate.exchange(product.getPath(), HttpMethod.GET, new HttpEntity<>(sellerHeader("seller-karim")),
-                ProductResponseDto.class).getBody().getVariants();
+                ProductResponseDto.class).getBody();
     }
 
     private ResponseEntity<ProductResponseDto> createAirMax(final String sellerId) {

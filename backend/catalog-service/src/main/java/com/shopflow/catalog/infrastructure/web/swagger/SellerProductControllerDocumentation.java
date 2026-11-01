@@ -2,6 +2,7 @@ package com.shopflow.catalog.infrastructure.web.swagger;
 
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,7 +21,7 @@ import java.util.UUID;
  * Documentation OpenAPI de l'API produits côté vendeur (page Swagger UI).
  * Portée par une interface pour que le contrôleur reste sans annotations de documentation.
  */
-@Tag(name = "Produits (vendeur)", description = "Un vendeur crée et consulte ses produits, et leur ajoute des variantes.")
+@Tag(name = "Produits (vendeur)", description = "Un vendeur crée, consulte et modifie ses produits, et leur ajoute des variantes.")
 public interface SellerProductControllerDocumentation {
 
     String SELLER_HEADER_DESCRIPTION =
@@ -51,6 +52,29 @@ public interface SellerProductControllerDocumentation {
     ProductResponseDto getProduct(
             @Parameter(description = SELLER_HEADER_DESCRIPTION, example = "seller-karim") String sellerId,
             @Parameter(description = "Identifiant du produit (UUID).") UUID productId);
+
+    @Operation(summary = "Modifier les informations d'un de ses produits",
+            description = "Remplace le nom, la marque, la catégorie et la description : une description absente "
+                    + "efface celle qui existait. Le statut et les variantes ne changent pas.")
+    @ApiResponse(responseCode = "200", description = "Le produit à jour, ou inchangé si rien n'était différent.")
+    @ApiResponse(responseCode = "400",
+            description = "Requête invalide. Codes : VALIDATION_FAILED, INVALID_PARAMETER, INVALID_SELLER_ID, "
+                    + "MISSING_HEADER, MALFORMED_REQUEST.",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "404",
+            description = "Produit inexistant ou appartenant à un autre vendeur. Code : PRODUCT_NOT_FOUND.",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "409",
+            description = "Le produit a changé pendant la modification : le relire avant de réessayer. "
+                    + "Code : PRODUCT_MODIFIED_CONCURRENTLY.",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    ProductResponseDto updateProduct(
+            @Parameter(description = SELLER_HEADER_DESCRIPTION, example = "seller-karim") String sellerId,
+            @Parameter(description = "Identifiant du produit (UUID).") UUID productId,
+            UpdateProductRequestDto requestDto);
 
     @Operation(summary = "Ajouter une variante à un de ses produits",
             description = "Le SKU est généré par le serveur. Le prix est un nombre entier de centimes, en euros.")

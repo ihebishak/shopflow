@@ -2,6 +2,7 @@ package com.shopflow.catalog.infrastructure.web.mapper;
 
 import com.shopflow.catalog.application.api.command.AddVariantCommand;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
+import com.shopflow.catalog.application.api.command.UpdateProductCommand;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
@@ -10,6 +11,7 @@ import com.shopflow.catalog.domain.Variant;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import com.shopflow.kernel.money.Money;
@@ -31,6 +33,10 @@ public interface ProductRestMapper {
     @Mapping(target = "sellerId", source = "sellerId")
     @Mapping(target = "productId", source = "productId")
     AddVariantCommand toCommand(AddVariantRequestDto requestDto, SellerId sellerId, ProductId productId);
+
+    @Mapping(target = "sellerId", source = "sellerId")
+    @Mapping(target = "productId", source = "productId")
+    UpdateProductCommand toCommand(UpdateProductRequestDto requestDto, SellerId sellerId, ProductId productId);
 
     ProductResponseDto toResponseDto(Product product);
 

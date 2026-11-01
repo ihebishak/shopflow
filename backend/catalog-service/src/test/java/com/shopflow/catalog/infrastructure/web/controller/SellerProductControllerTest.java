@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shopflow.catalog.application.api.AddVariantUseCase;
 import com.shopflow.catalog.application.api.CreateProductUseCase;
 import com.shopflow.catalog.application.api.GetSellerProductUseCase;
+import com.shopflow.catalog.application.api.UpdateProductUseCase;
 import com.shopflow.catalog.application.api.command.AddVariantCommand;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
+import com.shopflow.catalog.application.api.command.UpdateProductCommand;
 import com.shopflow.catalog.domain.DuplicateVariantException;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
@@ -16,6 +18,7 @@ import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.mapper.ProductRestMapperImpl;
 import com.shopflow.kernel.money.Money;
 import org.junit.jupiter.api.DisplayName;
@@ -43,6 +46,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -76,6 +80,9 @@ class SellerProductControllerTest {
 
     @MockitoBean
     private AddVariantUseCase addVariantUseCase;
+
+    @MockitoBean
+    private UpdateProductUseCase updateProductUseCase;
 
     @Test
     @DisplayName("SHOULD return 201 with the location and the product WHEN the product is valid")
@@ -332,6 +339,155 @@ class SellerProductControllerTest {
         postVariant(productId, variant().build())
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PRODUCT_MODIFIED_CONCURRENTLY"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 200 with the product and pass every information to the use case WHEN the update is valid")
+    void shouldReturn200WhenUpdateIsValid() throws Exception {
+        // GIVEN
+        Product airMax = airMaxOf(KARIM);
+        when(updateProductUseCase.updateProduct(any(UpdateProductCommand.class))).thenReturn(airMax);
+
+        // WHEN / THEN
+        putProduct(airMax.getId(), airMaxUpdate().description("Réédition").build())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(airMax.getId().toString()))
+                .andExpect(jsonPath("$.name").value("Air Max 90 Infrared"))
+                .andExpect(jsonPath("$.status").value("DRAFT"));
+        ArgumentCaptor<UpdateProductCommand> command = ArgumentCaptor.forClass(UpdateProductCommand.class);
+        verify(updateProductUseCase).updateProduct(command.capture());
+        assertThat(command.getValue().getSellerId()).isEqualTo(KARIM);
+        assertThat(command.getValue().getProductId()).isEqualTo(airMax.getId());
+        assertThat(command.getValue().getName()).isEqualTo("Air Max 90 Infrared");
+        assertThat(command.getValue().getBrand()).isEqualTo("Nike");
+        assertThat(command.getValue().getCategory()).isEqualTo("sneakers");
+        assertThat(command.getValue().getDescription()).isEqualTo("Réédition");
+    }
+
+    @Test
+    @DisplayName("SHOULD pass no description to the use case WHEN the description is left out of the update")
+    void shouldPassNoDescriptionWhenDescriptionIsLeftOutOfUpdate() throws Exception {
+        // GIVEN
+        Product airMax = airMaxOf(KARIM);
+        when(updateProductUseCase.updateProduct(any(UpdateProductCommand.class))).thenReturn(airMax);
+
+        // WHEN / THEN
+        mockMvc.perform(put(PRODUCTS + "/" + airMax.getId()).header(SellerProductController.SELLER_HEADER, "seller-karim")
+                        .contentType(MediaType.APPLICATION_JSON).content(AIR_MAX_JSON))
+                .andExpect(status().isOk());
+        ArgumentCaptor<UpdateProductCommand> command = ArgumentCaptor.forClass(UpdateProductCommand.class);
+        verify(updateProductUseCase).updateProduct(command.capture());
+        assertThat(command.getValue().getDescription()).isNull();
+    }
+
+    @Test
+    @DisplayName("SHOULD return 200 WHEN each updated field is at its maximum length")
+    void shouldReturn200WhenEachUpdatedFieldIsAtItsMaximumLength() throws Exception {
+        // GIVEN
+        Product airMax = airMaxOf(KARIM);
+        when(updateProductUseCase.updateProduct(any(UpdateProductCommand.class))).thenReturn(airMax);
+
+        // WHEN / THEN
+        putProduct(airMax.getId(), UpdateProductRequestDto.builder().name("a".repeat(120)).brand("b".repeat(60))
+                .category("c".repeat(60)).description("d".repeat(2_000)).build())
+                .andExpect(status().isOk());
+    }
+
+    @ParameterizedTest
+    @DisplayName("SHOULD return 400 VALIDATION_FAILED naming the field, without calling the use case, WHEN the update is invalid")
+    @MethodSource("invalidUpdates")
+    void shouldReturn400WithFieldWhenUpdateIsInvalid(final UpdateProductRequestDto requestDto, final String field,
+                                                     final String code) throws Exception {
+        // WHEN / THEN
+        putProduct(ProductId.newId(), requestDto)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors.length()").value(1))
+                .andExpect(jsonPath("$.errors[0].field").value(field))
+                .andExpect(jsonPath("$.errors[0].code").value(code));
+        verify(updateProductUseCase, never()).updateProduct(any());
+    }
+
+    private static Stream<Arguments> invalidUpdates() {
+        return Stream.of(
+                arguments(airMaxUpdate().name(" ").build(), "name", "NOT_BLANK"),
+                arguments(airMaxUpdate().brand(" ").build(), "brand", "NOT_BLANK"),
+                arguments(airMaxUpdate().category(" ").build(), "category", "NOT_BLANK"),
+                arguments(airMaxUpdate().name("a".repeat(121)).build(), "name", "SIZE"),
+                arguments(airMaxUpdate().brand("b".repeat(61)).build(), "brand", "SIZE"),
+                arguments(airMaxUpdate().category("c".repeat(61)).build(), "category", "SIZE"),
+                arguments(airMaxUpdate().description("d".repeat(2_001)).build(), "description", "SIZE"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 MISSING_HEADER WHEN updating without the seller header")
+    void shouldReturn400WhenUpdatingWithoutSellerHeader() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(put(PRODUCTS + "/" + ProductId.newId()).contentType(MediaType.APPLICATION_JSON)
+                        .content(AIR_MAX_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MISSING_HEADER"));
+        verify(updateProductUseCase, never()).updateProduct(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 INVALID_SELLER_ID WHEN updating with a blank seller header")
+    void shouldReturn400WhenUpdatingWithBlankSellerHeader() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(put(PRODUCTS + "/" + ProductId.newId()).header(SellerProductController.SELLER_HEADER, "   ")
+                        .contentType(MediaType.APPLICATION_JSON).content(AIR_MAX_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SELLER_ID"));
+        verify(updateProductUseCase, never()).updateProduct(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 INVALID_PARAMETER WHEN updating a product whose id is not a UUID")
+    void shouldReturn400WhenUpdatedProductIdIsNotUuid() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(put(PRODUCTS + "/not-a-uuid").header(SellerProductController.SELLER_HEADER, "seller-karim")
+                        .contentType(MediaType.APPLICATION_JSON).content(AIR_MAX_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+        verify(updateProductUseCase, never()).updateProduct(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 PRODUCT_NOT_FOUND WHEN updating a product of another seller")
+    void shouldReturn404WhenUpdatingProductOfAnotherSeller() throws Exception {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        when(updateProductUseCase.updateProduct(any(UpdateProductCommand.class)))
+                .thenThrow(new ProductNotFoundException(productId));
+
+        // WHEN / THEN
+        putProduct(productId, airMaxUpdate().build())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("PRODUCT_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 409 PRODUCT_MODIFIED_CONCURRENTLY WHEN the product changes during the update")
+    void shouldReturn409WhenProductChangesDuringUpdate() throws Exception {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        when(updateProductUseCase.updateProduct(any(UpdateProductCommand.class)))
+                .thenThrow(new ProductModifiedConcurrentlyException(productId));
+
+        // WHEN / THEN
+        putProduct(productId, airMaxUpdate().build())
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PRODUCT_MODIFIED_CONCURRENTLY"));
+    }
+
+    private ResultActions putProduct(final ProductId productId, final UpdateProductRequestDto requestDto) throws Exception {
+        return mockMvc.perform(put(PRODUCTS + "/" + productId).header(SellerProductController.SELLER_HEADER, "seller-karim")
+                .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(requestDto)));
+    }
+
+    private static UpdateProductRequestDto.UpdateProductRequestDtoBuilder airMaxUpdate() {
+        return UpdateProductRequestDto.builder().name("Air Max 90 Infrared").brand("Nike").category("sneakers");
     }
 
     private ResultActions postVariant(final ProductId productId, final AddVariantRequestDto requestDto) throws Exception {

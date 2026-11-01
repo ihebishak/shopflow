@@ -113,3 +113,60 @@ Content-Type: application/json
   "color": "Rouge",
   "price": { "amount": 160.50, "currency": "EUR" }
 }
+
+### Modifier le produit (200) : toutes les informations sont remplacées, les variantes restent
+PUT http://localhost:8101/api/v1/seller/products/{{productId}}
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": "Air Max 90 Infrared OG",
+  "brand": "Nike",
+  "category": "sneakers",
+  "description": "La réédition fidèle du modèle de 1990"
+}
+
+### Les mêmes informations (200, rien n'est enregistré ni annoncé)
+PUT http://localhost:8101/api/v1/seller/products/{{productId}}
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": "Air Max 90 Infrared OG",
+  "brand": "Nike",
+  "category": "sneakers",
+  "description": "La réédition fidèle du modèle de 1990"
+}
+
+### Sans description (200, celle qui existait est effacée)
+PUT http://localhost:8101/api/v1/seller/products/{{productId}}
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": "Air Max 90 Infrared OG",
+  "brand": "Nike",
+  "category": "sneakers"
+}
+
+### Un autre vendeur ne peut pas le modifier (404 PRODUCT_NOT_FOUND)
+PUT http://localhost:8101/api/v1/seller/products/{{productId}}
+X-Seller-Id: seller-lea
+Content-Type: application/json
+
+{
+  "name": "Air Max piratée",
+  "brand": "Nike",
+  "category": "sneakers"
+}
+
+### Modification invalide, nom vide (400 VALIDATION_FAILED, avec le champ dans errors[])
+PUT http://localhost:8101/api/v1/seller/products/{{productId}}
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": " ",
+  "brand": "Nike",
+  "category": "sneakers"
+}

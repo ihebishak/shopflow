@@ -6,9 +6,11 @@ import com.shopflow.catalog.infrastructure.web.controller.SellerProductControlle
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import com.shopflow.contracts.product.ProductCreated;
+import com.shopflow.contracts.product.ProductUpdated;
 import com.shopflow.contracts.product.ProductVariant;
 import com.shopflow.contracts.product.ProductVariantAdded;
 import com.shopflow.starter.cloudevents.EventMetadata;
@@ -179,6 +181,57 @@ class ProductEventPublicationTest {
         ProductResponseDto product = restTemplate.exchange(PRODUCTS + "/" + productId, HttpMethod.GET,
                 new HttpEntity<>(headers("corr-read")), ProductResponseDto.class).getBody();
         assertThat(product.getVariants()).as("la variante est annulée avec l'événement").isEmpty();
+    }
+
+    @Test
+    @DisplayName("SHOULD publish ProductUpdated on Kafka with its envelope WHEN a seller updates a product")
+    void shouldPublishProductUpdatedWhenSellerUpdatesProduct() {
+        // GIVEN
+        String productId = createdProductId();
+        String correlationId = "corr-" + UUID.randomUUID();
+        UpdateProductRequestDto requestDto = UpdateProductRequestDto.builder().name("Air Max 90 OG").brand("Nike")
+                .category("sneakers").description("La réédition du modèle de 1990").build();
+
+        // WHEN
+        ResponseEntity<ProductResponseDto> response = restTemplate.exchange(PRODUCTS + "/" + productId, HttpMethod.PUT,
+                new HttpEntity<>(requestDto, headers(correlationId)), ProductResponseDto.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        ConsumerRecord<String, SpecificRecord> record = awaitEvent(productId, ProductUpdated.class);
+
+        ProductUpdated event = (ProductUpdated) record.value();
+        assertThat(event.getProductId()).isEqualTo(productId);
+        assertThat(event.getChangedFields()).containsExactly("name", "description");
+
+        EventMetadata metadata = EventMetadata.fromHeaders(record.headers()).orElseThrow();
+        assertThat(metadata.getType()).isEqualTo("shopflow.product.ProductUpdated.v1");
+        assertThat(metadata.getSource()).isEqualTo("/catalog-service");
+        assertThat(metadata.getSubject()).isEqualTo(productId);
+        assertThat(metadata.getCorrelationId()).as("même parcours que la requête HTTP").isEqualTo(correlationId);
+    }
+
+    @Test
+    @DisplayName("SHOULD not change the product WHEN the event cannot be written to the outbox")
+    void shouldNotChangeProductWhenEventCannotBeWritten() {
+        // GIVEN
+        String productId = createdProductId();
+        doThrow(new IllegalStateException("outbox unavailable"))
+                .when(outboxPublisher).publish(anyString(), anyString(), any(SpecificRecord.class));
+        UpdateProductRequestDto requestDto = UpdateProductRequestDto.builder().name("Air Max 90 OG").brand("Nike")
+                .category("sneakers").build();
+
+        // WHEN
+        ResponseEntity<JsonNode> response = restTemplate.exchange(PRODUCTS + "/" + productId, HttpMethod.PUT,
+                new HttpEntity<>(requestDto, headers("corr-rollback")), JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("INTERNAL_ERROR");
+        ProductResponseDto product = restTemplate.exchange(PRODUCTS + "/" + productId, HttpMethod.GET,
+                new HttpEntity<>(headers("corr-read")), ProductResponseDto.class).getBody();
+        assertThat(product.getName()).as("la modification est annulée avec l'événement")
+                .isEqualTo("Air Max 90 Infrared");
     }
 
     private String createdProductId() {

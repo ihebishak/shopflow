@@ -3,12 +3,14 @@ package com.shopflow.catalog.infrastructure.web.controller;
 import com.shopflow.catalog.application.api.AddVariantUseCase;
 import com.shopflow.catalog.application.api.CreateProductUseCase;
 import com.shopflow.catalog.application.api.GetSellerProductUseCase;
+import com.shopflow.catalog.application.api.UpdateProductUseCase;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import com.shopflow.catalog.infrastructure.web.mapper.ProductRestMapper;
@@ -21,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -46,6 +49,7 @@ public class SellerProductController implements SellerProductControllerDocumenta
 
     private final CreateProductUseCase createProductUseCase;
     private final GetSellerProductUseCase getSellerProductUseCase;
+    private final UpdateProductUseCase updateProductUseCase;
     private final AddVariantUseCase addVariantUseCase;
     private final ProductRestMapper productRestMapper;
 
@@ -68,6 +72,19 @@ public class SellerProductController implements SellerProductControllerDocumenta
     public ProductResponseDto getProduct(@RequestHeader(SELLER_HEADER) final String sellerId,
                                          @PathVariable final UUID productId) {
         Product product = getSellerProductUseCase.getSellerProduct(new SellerId(sellerId), new ProductId(productId));
+        return productRestMapper.toResponseDto(product);
+    }
+
+    /** Remplace les informations du produit : 200 OK avec le produit, même si rien n'a changé. */
+    @Override
+    @PutMapping(value = "/{productId}", consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.OK)
+    public ProductResponseDto updateProduct(@RequestHeader(SELLER_HEADER) final String sellerId,
+                                            @PathVariable final UUID productId,
+                                            @Valid @RequestBody final UpdateProductRequestDto requestDto) {
+        Product product = updateProductUseCase.updateProduct(
+                productRestMapper.toCommand(requestDto, new SellerId(sellerId), new ProductId(productId)));
         return productRestMapper.toResponseDto(product);
     }
 
