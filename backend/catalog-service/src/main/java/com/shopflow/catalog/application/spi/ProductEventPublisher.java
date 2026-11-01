@@ -1,6 +1,8 @@
 package com.shopflow.catalog.application.spi;
 
 import com.shopflow.catalog.domain.Product;
+import com.shopflow.catalog.domain.ProductId;
+import com.shopflow.catalog.domain.Variant;
 
 /**
  * Port de sortie : annoncer aux autres services ce qui arrive aux produits. Les cas d'usage ne savent pas comment ;
@@ -10,4 +12,6 @@ import com.shopflow.catalog.domain.Product;
 public interface ProductEventPublisher {
 
     void publishProductCreated(Product product);
+
+    void publishProductVariantAdded(ProductId productId, Variant variant);
 }

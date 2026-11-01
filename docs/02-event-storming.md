@@ -100,7 +100,7 @@ Légende : `[tâche]` exécutée par un worker · `<◇ attente>` passerelle sur
 |---|---|
 | Orchestration | La saga de commande est un **processus BPMN Camunda 8** (`order-fulfillment`). Délais, compensations et attente des colis en parallèle sont visibles dans Camunda Operate. |
 | Communication | Le processus publie des **commandes Kafka** ; les réponses (événements) sont **corrélées** au processus par `order-service` (clé : n° de commande ou de sous-commande). Les messages Camunda ont une durée de vie (TTL) pour absorber le cas où la réponse arrive avant que le processus ne l'attende. |
-| Prix au checkout | `order-service` garde **sa propre copie des prix** (`ProductCreated` / `ProductPriceChanged`). |
+| Prix au checkout | `order-service` garde **sa propre copie des prix** (`ProductVariantAdded` / `ProductPriceChanged`). |
 | Paiement | **Stripe Payment Element** (formulaire intégré à la page Angular) + webhooks : c'est nous qui fixons le délai de paiement. |
 | Durée de réservation du stock | **30 min** en achat classique, **10 min** pour un drop (variable du processus). |
 | Annulation par le client | **Autorisée tant qu'aucun colis n'est parti** : message `CancellationRequested` → remboursement → stock libéré → `OrderCancelled` (`CUSTOMER_REQUEST`). Après expédition : processus de retour (plus tard). |
@@ -307,9 +307,11 @@ Les différentes fins du processus permettent de mesurer l'efficacité des relan
 ### A. Publier un produit
 
 ```
- Le vendeur crée « Air Max 90 Infrared » : description, photos (MinIO), prix,
- variantes pointures 39 → 46 × 2 coloris = 16 SKU            (statut : brouillon)
-   ─▶ catalog ══ ProductCreated ══▶ inventory (16 SKU, stock 0), order (copie des prix)
+ Le vendeur crée « Air Max 90 Infrared » : description, photos (MinIO)  (statut : brouillon)
+   ─▶ catalog ══ ProductCreated ══▶ inventory, order, analytics (produit sans variante)
+ Il ajoute ses variantes une par une, chacune avec son prix :
+ pointures 39 → 46 × 2 coloris = 16 SKU
+   ─▶ catalog ══ ProductVariantAdded (×16) ══▶ inventory (stock 0), order (copie des prix)
  Il saisit son stock par taille ─▶ inventory ══ StockAdjusted
  Il publie ─▶ catalog ══ ProductPublished ─▶ visible dans la recherche
 
@@ -338,8 +340,8 @@ Le catalogue ne connaît pas le stock ; l'inventaire ne connaît pas les descrip
 
 | Événement | Produit par | Écouté par | Données clés |
 |---|---|---|---|
-| `ProductCreated` | catalog | inventory, order, analytics | produit, vendeur, variantes (SKU, taille, coloris, prix) |
-| `ProductVariantAdded` | catalog | inventory, order | produit, nouveau SKU |
+| `ProductCreated` | catalog | inventory, order, analytics | produit, vendeur, nom, marque, catégorie (le produit naît sans variante) |
+| `ProductVariantAdded` | catalog | inventory, order | produit, variante (SKU, taille, coloris, prix) |
 | `ProductUpdated` | catalog | analytics | produit, champs modifiés |
 | `ProductPublished` | catalog | analytics | produit |
 | `ProductUnpublished` | catalog | wishlist, cart (retire l'article), analytics | produit, motif |

@@ -6,6 +6,7 @@ import com.shopflow.catalog.application.api.AddVariantUseCase;
 import com.shopflow.catalog.application.api.command.AddVariantCommand;
 import com.shopflow.catalog.application.service.AddVariantService;
 import com.shopflow.catalog.application.service.GetSellerProductService;
+import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.application.spi.ProductRepository;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
@@ -25,6 +26,7 @@ import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.MongoTransactionManager;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
@@ -39,7 +41,10 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 /**
  * Deux ajouts simultanés sur le même produit, avec de vraies transactions MongoDB. Les verrous fixent l'ordre des
@@ -66,6 +71,9 @@ class AddVariantTransactionTest {
     @MockitoSpyBean
     private ProductRepository productRepository;
 
+    @MockitoBean
+    private ProductEventPublisher productEventPublisher;
+
     @Test
     @DisplayName("SHOULD refuse the second add and keep the first variant WHEN the product changed after being read")
     void shouldRefuseSecondAddWhenProductChangedAfterBeingRead() throws InterruptedException {
@@ -89,6 +97,7 @@ class AddVariantTransactionTest {
         // THEN
         assertThat(error).hasCauseInstanceOf(ProductModifiedConcurrentlyException.class);
         assertThat(sizesOf(airMax)).containsExactly("42", "43");
+        assertOnlyEventIsFor(airMax, "43");
     }
 
     @Test
@@ -115,6 +124,13 @@ class AddVariantTransactionTest {
         // THEN
         assertThat(error).isInstanceOf(ProductModifiedConcurrentlyException.class);
         assertThat(sizesOf(airMax)).containsExactly("42", PHONE_SIZE);
+        assertOnlyEventIsFor(airMax, PHONE_SIZE);
+    }
+
+    private void assertOnlyEventIsFor(final Product product, final String size) {
+        verify(productEventPublisher).publishProductVariantAdded(eq(product.getId()),
+                argThat(variant -> size.equals(variant.getSize())));
+        verifyNoMoreInteractions(productEventPublisher);
     }
 
     private Product savedAirMax() {
