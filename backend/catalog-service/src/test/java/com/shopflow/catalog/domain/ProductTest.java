@@ -11,6 +11,7 @@ import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -110,12 +111,13 @@ class ProductTest {
     void shouldAddVariantWhenVariantIsValid() {
         // GIVEN
         Product product = draftNamed("Air Max 90");
+        Variant variant = Variant.create(" 42 ", " Rouge ", PRICE);
 
         // WHEN
-        Variant variant = product.addVariant(" 42 ", " Rouge ", PRICE);
+        Product withVariant = product.addVariant(variant);
 
         // THEN
-        assertThat(product.getVariants()).containsExactly(variant);
+        assertThat(withVariant.getVariants()).containsExactly(variant);
         assertThat(variant.getSize()).isEqualTo("42");
         assertThat(variant.getColor()).isEqualTo("Rouge");
         assertThat(variant.getPrice()).isEqualTo(PRICE);
@@ -123,14 +125,11 @@ class ProductTest {
     }
 
     @Test
-    @DisplayName("SHOULD give each variant its own SKU WHEN two variants are added")
-    void shouldGiveEachVariantItsOwnSkuWhenTwoVariantsAreAdded() {
-        // GIVEN
-        Product product = draftNamed("Air Max 90");
-
+    @DisplayName("SHOULD give each variant its own SKU WHEN two variants are created")
+    void shouldGiveEachVariantItsOwnSkuWhenTwoVariantsAreCreated() {
         // WHEN
-        Variant first = product.addVariant("42", "Rouge", PRICE);
-        Variant second = product.addVariant("43", "Rouge", PRICE);
+        Variant first = Variant.create("42", "Rouge", PRICE);
+        Variant second = Variant.create("43", "Rouge", PRICE);
 
         // THEN
         assertThat(first.getSku()).isNotEqualTo(second.getSku());
@@ -141,27 +140,26 @@ class ProductTest {
     @DisplayName("SHOULD add the variant WHEN its size or its color is different")
     void shouldAddVariantWhenSizeOrColorIsDifferent(final String size, final String color) {
         // GIVEN
-        Product product = draftNamed("Air Max 90");
-        product.addVariant("42", "Rouge", PRICE);
+        Product product = draftNamed("Air Max 90").addVariant(Variant.create("42", "Rouge", PRICE));
 
         // WHEN
-        product.addVariant(size, color, PRICE);
+        Product withBoth = product.addVariant(Variant.create(size, color, PRICE));
 
         // THEN
-        assertThat(product.getVariants()).hasSize(2);
+        assertThat(withBoth.getVariants()).hasSize(2);
     }
 
     @ParameterizedTest
-    @CsvSource({"42, Rouge", "42, rouge", "' 42 ', ' ROUGE '", "xl, Rouge"})
-    @DisplayName("SHOULD refuse the variant and keep the list unchanged WHEN the size and the color already exist")
+    @CsvSource({"42, Rouge", "42, rouge", "42, ROUGE", "xl, Rouge", "' 42 ', ' Rouge '"})
+    @DisplayName("SHOULD refuse the variant WHEN its size and its color already exist, whatever the case")
     void shouldRefuseVariantWhenSizeAndColorAlreadyExist(final String size, final String color) {
         // GIVEN
-        Product product = draftNamed("Air Max 90");
-        product.addVariant("42", "Rouge", PRICE);
-        product.addVariant("XL", "Rouge", PRICE);
+        Product product = draftNamed("Air Max 90")
+                .addVariant(Variant.create("42", "Rouge", PRICE))
+                .addVariant(Variant.create("XL", "Rouge", PRICE));
 
         // WHEN
-        Throwable error = catchThrowable(() -> product.addVariant(size, color, PRICE));
+        Throwable error = catchThrowable(() -> product.addVariant(Variant.create(size, color, PRICE)));
 
         // THEN
         assertThat(error).isInstanceOf(DuplicateVariantException.class)
@@ -175,8 +173,8 @@ class ProductTest {
     @DisplayName("SHOULD refuse any change WHEN the variants are modified from the outside")
     void shouldRefuseChangeWhenVariantsAreModifiedFromTheOutside() {
         // GIVEN
-        Product product = draftNamed("Air Max 90");
-        Variant variant = product.addVariant("42", "Rouge", PRICE);
+        Variant variant = Variant.create("42", "Rouge", PRICE);
+        Product product = draftNamed("Air Max 90").addVariant(variant);
 
         // WHEN
         Throwable error = catchThrowable(() -> product.getVariants().add(variant));
@@ -193,10 +191,25 @@ class ProductTest {
         Product product = restoredWith(Variant.restore(Sku.newSku(), "42", "Rouge", PRICE));
 
         // WHEN
-        product.addVariant("43", "Rouge", PRICE);
+        Product withBoth = product.addVariant(Variant.create("43", "Rouge", PRICE));
 
         // THEN
-        assertThat(product.getVariants()).hasSize(2);
+        assertThat(withBoth.getVariants()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("SHOULD keep its variants WHEN the list given to restore is modified afterwards")
+    void shouldKeepVariantsWhenListGivenToRestoreIsModified() {
+        // GIVEN
+        List<Variant> variants = new ArrayList<>(List.of(Variant.restore(Sku.newSku(), "42", "Rouge", PRICE)));
+        Product product = Product.restore(ProductId.newId(), KARIM, "Air Max 90", "Nike", "sneakers", null,
+                ProductStatus.DRAFT, NOW, variants, 0L);
+
+        // WHEN
+        variants.clear();
+
+        // THEN
+        assertThat(product.getVariants()).hasSize(1);
     }
 
     @Test
@@ -206,10 +219,27 @@ class ProductTest {
         Product product = restoredWith(Variant.restore(Sku.newSku(), "42", "Rouge", PRICE));
 
         // WHEN
-        Throwable error = catchThrowable(() -> product.addVariant("42", "rouge", PRICE));
+        Throwable error = catchThrowable(() -> product.addVariant(Variant.create("42", "rouge", PRICE)));
 
         // THEN
         assertThat(error).isInstanceOf(DuplicateVariantException.class);
+    }
+
+    @Test
+    @DisplayName("SHOULD keep every other field and leave the original untouched WHEN a variant is added")
+    void shouldKeepEverythingElseWhenVariantIsAdded() {
+        // GIVEN
+        Variant existing = Variant.restore(Sku.newSku(), "42", "Rouge", PRICE);
+        Product product = restoredWith(existing);
+        Variant added = Variant.create("43", "Rouge", PRICE);
+
+        // WHEN
+        Product withBoth = product.addVariant(added);
+
+        // THEN
+        assertThat(withBoth).usingRecursiveComparison().ignoringFields("variants").isEqualTo(product);
+        assertThat(withBoth.getVariants()).containsExactly(existing, added);
+        assertThat(product.getVariants()).containsExactly(existing);
     }
 
     private static Product restoredWith(final Variant... variants) {

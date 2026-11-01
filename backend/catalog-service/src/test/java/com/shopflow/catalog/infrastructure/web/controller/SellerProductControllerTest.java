@@ -155,8 +155,8 @@ class SellerProductControllerTest {
     @DisplayName("SHOULD return the variants with their price in cents WHEN the product has some")
     void shouldReturnVariantsWhenProductHasSome() throws Exception {
         // GIVEN
-        Product airMax = airMaxOf(KARIM);
-        Variant variant = airMax.addVariant("42", "Rouge", Money.euros(16000));
+        Variant variant = Variant.create("42", "Rouge", Money.euros(16000));
+        Product airMax = airMaxOf(KARIM).addVariant(variant);
         when(getSellerProductUseCase.getSellerProduct(KARIM, airMax.getId())).thenReturn(airMax);
 
         // WHEN / THEN

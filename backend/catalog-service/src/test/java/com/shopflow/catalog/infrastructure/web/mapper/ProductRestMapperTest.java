@@ -105,8 +105,9 @@ class ProductRestMapperTest {
     @DisplayName("SHOULD copy every variant field WHEN the product has a variant")
     void shouldCopyEveryVariantFieldWhenProductHasVariant() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
-        Variant variant = airMax.addVariant("42", "Rouge", Money.euros(16000));
+        Variant variant = Variant.create("42", "Rouge", Money.euros(16000));
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now())
+                .addVariant(variant);
 
         // WHEN
         ProductResponseDto responseDto = productRestMapper.toResponseDto(airMax);

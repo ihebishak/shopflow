@@ -30,8 +30,8 @@ public class AddVariantService implements AddVariantUseCase {
     @Transactional
     public Variant addVariant(final AddVariantCommand command) {
         Product product = getSellerProductUseCase.getSellerProduct(command.getSellerId(), command.getProductId());
-        Variant variant = product.addVariant(command.getSize(), command.getColor(), command.getPrice());
-        productRepository.save(product);
+        Variant variant = Variant.create(command.getSize(), command.getColor(), command.getPrice());
+        productRepository.save(product.addVariant(variant));
         productEventPublisher.publishProductVariantAdded(product.getId(), variant);
         return variant;
     }
