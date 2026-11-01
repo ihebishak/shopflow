@@ -2,6 +2,8 @@ package com.shopflow.catalog.domain;
 
 import com.shopflow.kernel.money.Money;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 
 import java.time.Instant;
@@ -17,8 +19,12 @@ import java.util.Optional;
  * Aucune dépendance à Spring, MongoDB ou Kafka (Lombok n'agit qu'à la compilation). Un produit ne peut être créé
  * que par {@link #draft}. Le format des champs est vérifié à l'entrée des cas d'usage, par les annotations des
  * commandes : le domaine ne vérifie que ce qui dépend de son état.
+ * <p>
+ * Immuable : un changement renvoie un nouveau produit, qu'il faut récupérer pour l'enregistrer.
  */
 @Getter
+@Builder(toBuilder = true, access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public final class Product {
 
     public static final int NAME_MAX_LENGTH = 120;
@@ -39,27 +45,11 @@ public final class Product {
     private final ProductStatus status;
     private final Instant createdAt;
 
-    /** Modifiable uniquement par {@link #addVariant} : exposée par {@link #getVariants()} en lecture seule. */
-    @Getter(AccessLevel.NONE)
+    /** Toujours une liste non modifiable : {@code getVariants()} peut l'exposer telle quelle. */
     private final List<Variant> variants;
 
     /** Numéro de l'enregistrement lu, {@code null} avant le premier : empêche d'écraser une modification concurrente. */
     private final Long version;
-
-    private Product(final ProductId id, final SellerId sellerId, final String name, final String brand,
-                    final String category, final String description, final ProductStatus status,
-                    final Instant createdAt, final List<Variant> variants, final Long version) {
-        this.id = id;
-        this.sellerId = sellerId;
-        this.name = name;
-        this.brand = brand;
-        this.category = category;
-        this.description = description;
-        this.status = status;
-        this.createdAt = createdAt;
-        this.variants = new ArrayList<>(variants);
-        this.version = version;
-    }
 
     /**
      * Crée un brouillon, invisible des clients jusqu'à sa publication.
@@ -70,8 +60,17 @@ public final class Product {
      */
     public static Product draft(final SellerId sellerId, final String name, final String brand, final String category,
                                 final String description, final Instant now) {
-        return new Product(ProductId.newId(), sellerId, name.strip(), brand.strip(), category.strip(),
-                blankToNull(description), ProductStatus.DRAFT, now.truncatedTo(ChronoUnit.MILLIS), List.of(), null);
+        return Product.builder()
+                .id(ProductId.newId())
+                .sellerId(sellerId)
+                .name(name.strip())
+                .brand(brand.strip())
+                .category(category.strip())
+                .description(blankToNull(description))
+                .status(ProductStatus.DRAFT)
+                .createdAt(now.truncatedTo(ChronoUnit.MILLIS))
+                .variants(List.of())
+                .build();
     }
 
     /**
@@ -83,34 +82,90 @@ public final class Product {
     public static Product restore(final ProductId id, final SellerId sellerId, final String name, final String brand,
                                   final String category, final String description, final ProductStatus status,
                                   final Instant createdAt, final List<Variant> variants, final Long version) {
-        return new Product(Objects.requireNonNull(id, "id"), Objects.requireNonNull(sellerId, "sellerId"),
-                Objects.requireNonNull(name, "name"), Objects.requireNonNull(brand, "brand"),
-                Objects.requireNonNull(category, "category"), description,
-                Objects.requireNonNull(status, "status"), Objects.requireNonNull(createdAt, "createdAt"),
-                Objects.requireNonNull(variants, "variants"), version);
+        return Product.builder()
+                .id(Objects.requireNonNull(id, "id"))
+                .sellerId(Objects.requireNonNull(sellerId, "sellerId"))
+                .name(Objects.requireNonNull(name, "name"))
+                .brand(Objects.requireNonNull(brand, "brand"))
+                .category(Objects.requireNonNull(category, "category"))
+                .description(description)
+                .status(Objects.requireNonNull(status, "status"))
+                .createdAt(Objects.requireNonNull(createdAt, "createdAt"))
+                .variants(List.copyOf(Objects.requireNonNull(variants, "variants")))
+                .version(version)
+                .build();
     }
 
     /**
      * Ajoute une variante au produit.
      *
-     * @return la variante créée, avec son nouveau SKU
+     * @return le produit avec cette variante
      * @throws DuplicateVariantException si le produit a déjà cette taille et ce coloris
      */
-    public Variant addVariant(final String size, final String color, final Money price) {
-        Variant variant = Variant.create(size, color, price);
+    public Product addVariant(final Variant variant) {
         if (variants.stream().anyMatch(variant::hasSameOptionsAs)) {
             throw new DuplicateVariantException(variant);
         }
-        variants.add(variant);
-        return variant;
+        List<Variant> newVariants = new ArrayList<>(variants);
+        newVariants.add(variant);
+        return toBuilder().variants(List.copyOf(newVariants)).build();
+    }
+
+    /**
+     * @return la variante du produit portant ce SKU
+     * @throws VariantNotFoundException si le produit n'a pas cette variante
+     */
+    public Variant variant(final Sku sku) {
+        return variants.stream().filter(variant -> variant.getSku().equals(sku)).findFirst()
+                .orElseThrow(() -> new VariantNotFoundException(id, sku));
+    }
+
+    /**
+     * Change le prix d'une variante, qui garde sa place parmi les autres.
+     *
+     * @return le produit avec ce prix
+     * @throws VariantNotFoundException si le produit n'a pas cette variante
+     */
+    public Product changeVariantPrice(final Sku sku, final Money newPrice) {
+        Variant changed = variant(sku).withPrice(newPrice);
+        List<Variant> newVariants = variants.stream()
+                .map(variant -> variant.getSku().equals(sku) ? changed : variant).toList();
+        return toBuilder().variants(newVariants).build();
+    }
+
+    /**
+     * Modifie les informations du produit, nettoyées comme à la création.
+     *
+     * @param description facultative : l'omettre l'efface
+     * @return le produit avec ces informations
+     */
+    public Product update(final String name, final String brand, final String category, final String description) {
+        return toBuilder().name(name.strip()).brand(brand.strip()).category(category.strip())
+                .description(blankToNull(description)).build();
+    }
+
+    /**
+     * @param before le produit avant sa modification
+     * @return les noms des informations qui diffèrent, vide si rien n'a changé
+     */
+    public List<String> changedFieldsSince(final Product before) {
+        List<String> changedFields = new ArrayList<>();
+        addIfChanged(changedFields, "name", before.name, name);
+        addIfChanged(changedFields, "brand", before.brand, brand);
+        addIfChanged(changedFields, "category", before.category, category);
+        addIfChanged(changedFields, "description", before.description, description);
+        return List.copyOf(changedFields);
     }
 
     public Optional<String> getDescription() {
         return Optional.ofNullable(description);
     }
 
-    public List<Variant> getVariants() {
-        return List.copyOf(variants);
+    private static void addIfChanged(final List<String> changedFields, final String field, final String oldValue,
+                                     final String newValue) {
+        if (!Objects.equals(oldValue, newValue)) {
+            changedFields.add(field);
+        }
     }
 
     private static String blankToNull(final String value) {

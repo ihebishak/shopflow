@@ -1,14 +1,19 @@
 package com.shopflow.catalog.infrastructure.web.mapper;
 
 import com.shopflow.catalog.application.api.command.AddVariantCommand;
+import com.shopflow.catalog.application.api.command.ChangeVariantPriceCommand;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
+import com.shopflow.catalog.application.api.command.UpdateProductCommand;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
+import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.ChangeVariantPriceRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.MoneyResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
@@ -68,6 +73,46 @@ class ProductRestMapperTest {
     }
 
     @Test
+    @DisplayName("SHOULD build the command with the seller and the product WHEN mapping an update request")
+    void shouldBuildCommandWhenMappingUpdateRequest() {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        UpdateProductRequestDto requestDto = UpdateProductRequestDto.builder()
+                .name("Air Max 90 OG").brand("Nike Sportswear").category("lifestyle").description("Réédition 2026")
+                .build();
+
+        // WHEN
+        UpdateProductCommand command = productRestMapper.toCommand(requestDto, KARIM, productId);
+
+        // THEN
+        assertThat(command.getSellerId()).isEqualTo(KARIM);
+        assertThat(command.getProductId()).isEqualTo(productId);
+        assertThat(command.getName()).isEqualTo("Air Max 90 OG");
+        assertThat(command.getBrand()).isEqualTo("Nike Sportswear");
+        assertThat(command.getCategory()).isEqualTo("lifestyle");
+        assertThat(command.getDescription()).isEqualTo("Réédition 2026");
+    }
+
+    @Test
+    @DisplayName("SHOULD build the command with the seller, the product, the sku and the price WHEN mapping a price change")
+    void shouldBuildCommandWhenMappingPriceChange() {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        Sku sku = Sku.newSku();
+        ChangeVariantPriceRequestDto requestDto = ChangeVariantPriceRequestDto.builder()
+                .price(MoneyRequestDto.builder().amount(12900L).currency("EUR").build()).build();
+
+        // WHEN
+        ChangeVariantPriceCommand command = productRestMapper.toCommand(requestDto, KARIM, productId, sku);
+
+        // THEN
+        assertThat(command.getSellerId()).isEqualTo(KARIM);
+        assertThat(command.getProductId()).isEqualTo(productId);
+        assertThat(command.getSku()).isEqualTo(sku);
+        assertThat(command.getPrice()).isEqualTo(Money.euros(12900));
+    }
+
+    @Test
     @DisplayName("SHOULD copy every field WHEN mapping a product to the response")
     void shouldCopyEveryFieldWhenMappingProductToResponse() {
         // GIVEN
@@ -105,8 +150,9 @@ class ProductRestMapperTest {
     @DisplayName("SHOULD copy every variant field WHEN the product has a variant")
     void shouldCopyEveryVariantFieldWhenProductHasVariant() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
-        Variant variant = airMax.addVariant("42", "Rouge", Money.euros(16000));
+        Variant variant = Variant.create("42", "Rouge", Money.euros(16000));
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now())
+                .addVariant(variant);
 
         // WHEN
         ProductResponseDto responseDto = productRestMapper.toResponseDto(airMax);

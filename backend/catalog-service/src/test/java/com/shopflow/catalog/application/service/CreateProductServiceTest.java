@@ -6,7 +6,9 @@ import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductStatus;
 import com.shopflow.catalog.domain.SellerId;
+import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
+import com.shopflow.kernel.money.Money;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -76,6 +78,17 @@ class CreateProductServiceTest {
         @Override
         public void publishProductVariantAdded(final ProductId productId, final Variant variant) {
             throw new UnsupportedOperationException("creating a product adds no variant");
+        }
+
+        @Override
+        public void publishProductUpdated(final ProductId productId, final List<String> changedFields) {
+            throw new UnsupportedOperationException("creating a product updates nothing");
+        }
+
+        @Override
+        public void publishProductPriceChanged(final ProductId productId, final Sku sku, final Money oldPrice,
+                                               final Money newPrice) {
+            throw new UnsupportedOperationException("creating a product changes no price");
         }
     }
 }

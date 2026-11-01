@@ -2,7 +2,11 @@ package com.shopflow.catalog.application.spi;
 
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
+import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
+import com.shopflow.kernel.money.Money;
+
+import java.util.List;
 
 /**
  * Port de sortie : annoncer aux autres services ce qui arrive aux produits. Les cas d'usage ne savent pas comment ;
@@ -14,4 +18,8 @@ public interface ProductEventPublisher {
     void publishProductCreated(Product product);
 
     void publishProductVariantAdded(ProductId productId, Variant variant);
+
+    void publishProductUpdated(ProductId productId, List<String> changedFields);
+
+    void publishProductPriceChanged(ProductId productId, Sku sku, Money oldPrice, Money newPrice);
 }

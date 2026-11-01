@@ -117,9 +117,9 @@ class MongoProductRepositoryTest {
     @DisplayName("SHOULD read back the same variants WHEN a product with variants has been saved")
     void shouldReadBackSameVariantsWhenSaved() {
         // GIVEN
-        Product airMax = draftAirMax();
-        airMax.addVariant("42", "Rouge", PRICE);
-        airMax.addVariant("43", "Noir", Money.euros(17_000));
+        Product airMax = draftAirMax()
+                .addVariant(Variant.create("42", "Rouge", PRICE))
+                .addVariant(Variant.create("43", "Noir", Money.euros(17_000)));
 
         // WHEN
         mongoProductRepository.save(airMax);
@@ -133,8 +133,8 @@ class MongoProductRepositoryTest {
     @DisplayName("SHOULD store the variants inside the product document WHEN a product is saved")
     void shouldStoreVariantsInsideProductDocumentWhenSaved() {
         // GIVEN
-        Product airMax = draftAirMax();
-        Variant variant = airMax.addVariant("42", "Rouge", PRICE);
+        Variant variant = Variant.create("42", "Rouge", PRICE);
+        Product airMax = draftAirMax().addVariant(variant);
 
         // WHEN
         mongoProductRepository.save(airMax);
@@ -174,14 +174,12 @@ class MongoProductRepositoryTest {
     @DisplayName("SHOULD keep the existing variants WHEN a variant is added to a product read back from MongoDB")
     void shouldKeepExistingVariantsWhenVariantIsAddedToProductReadBack() {
         // GIVEN
-        Product airMax = draftAirMax();
-        airMax.addVariant("42", "Rouge", PRICE);
+        Product airMax = draftAirMax().addVariant(Variant.create("42", "Rouge", PRICE));
         mongoProductRepository.save(airMax);
         Product readBack = mongoProductRepository.findById(airMax.getId()).orElseThrow();
 
         // WHEN
-        readBack.addVariant("43", "Rouge", PRICE);
-        mongoProductRepository.save(readBack);
+        mongoProductRepository.save(readBack.addVariant(Variant.create("43", "Rouge", PRICE)));
 
         // THEN
         Product saved = mongoProductRepository.findById(airMax.getId()).orElseThrow();
@@ -192,13 +190,12 @@ class MongoProductRepositoryTest {
     @DisplayName("SHOULD refuse the variant WHEN the product read back from MongoDB already has it")
     void shouldRefuseVariantWhenProductReadBackAlreadyHasIt() {
         // GIVEN
-        Product airMax = draftAirMax();
-        airMax.addVariant("42", "Rouge", PRICE);
+        Product airMax = draftAirMax().addVariant(Variant.create("42", "Rouge", PRICE));
         mongoProductRepository.save(airMax);
         Product readBack = mongoProductRepository.findById(airMax.getId()).orElseThrow();
 
         // WHEN
-        Throwable error = catchThrowable(() -> readBack.addVariant("42", "rouge", PRICE));
+        Throwable error = catchThrowable(() -> readBack.addVariant(Variant.create("42", "rouge", PRICE)));
 
         // THEN
         assertThat(error).isInstanceOf(DuplicateVariantException.class);
@@ -226,8 +223,7 @@ class MongoProductRepositoryTest {
         Product readBack = mongoProductRepository.findById(airMax.getId()).orElseThrow();
 
         // WHEN
-        readBack.addVariant("42", "Rouge", PRICE);
-        mongoProductRepository.save(readBack);
+        mongoProductRepository.save(readBack.addVariant(Variant.create("42", "Rouge", PRICE)));
 
         // THEN
         assertThat(mongoProductRepository.findById(airMax.getId()).orElseThrow().getVersion()).isEqualTo(1L);
@@ -237,17 +233,15 @@ class MongoProductRepositoryTest {
     @DisplayName("SHOULD refuse the save and keep the other variant WHEN the product changed since it was read")
     void shouldRefuseSaveWhenProductChangedSinceItWasRead() {
         // GIVEN
-        Product airMax = draftAirMax();
-        airMax.addVariant("42", "Rouge", PRICE);
+        Product airMax = draftAirMax().addVariant(Variant.create("42", "Rouge", PRICE));
         mongoProductRepository.save(airMax);
         Product readByComputer = mongoProductRepository.findById(airMax.getId()).orElseThrow();
         Product readByPhone = mongoProductRepository.findById(airMax.getId()).orElseThrow();
-        readByComputer.addVariant("43", "Rouge", PRICE);
-        mongoProductRepository.save(readByComputer);
-        readByPhone.addVariant("44", "Rouge", PRICE);
+        mongoProductRepository.save(readByComputer.addVariant(Variant.create("43", "Rouge", PRICE)));
+        Product changedByPhone = readByPhone.addVariant(Variant.create("44", "Rouge", PRICE));
 
         // WHEN
-        Throwable error = catchThrowable(() -> mongoProductRepository.save(readByPhone));
+        Throwable error = catchThrowable(() -> mongoProductRepository.save(changedByPhone));
 
         // THEN
         assertThat(error).isInstanceOf(ProductModifiedConcurrentlyException.class)

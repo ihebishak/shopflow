@@ -6,10 +6,15 @@ import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.contracts.product.ProductCreated;
+import com.shopflow.contracts.product.ProductPriceChanged;
+import com.shopflow.contracts.product.ProductUpdated;
 import com.shopflow.contracts.product.ProductVariant;
 import com.shopflow.contracts.product.ProductVariantAdded;
+import com.shopflow.kernel.money.Money;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+
+import java.util.List;
 
 /**
  * Conversions du domaine vers les événements Avro. Le code est généré par MapStruct ({@code ProductEventMapperImpl}).
@@ -29,6 +34,12 @@ public interface ProductEventMapper {
 
     @Mapping(target = "priceBuilder", ignore = true)
     ProductVariant toProductVariant(Variant variant);
+
+    ProductUpdated toProductUpdated(ProductId productId, List<String> changedFields);
+
+    @Mapping(target = "oldPriceBuilder", ignore = true)
+    @Mapping(target = "newPriceBuilder", ignore = true)
+    ProductPriceChanged toProductPriceChanged(ProductId productId, Sku sku, Money oldPrice, Money newPrice);
 
     default String map(final ProductId productId) {
         return productId.toString();

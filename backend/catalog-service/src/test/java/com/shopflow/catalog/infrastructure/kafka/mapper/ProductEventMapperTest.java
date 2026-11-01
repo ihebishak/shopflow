@@ -6,12 +6,15 @@ import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.contracts.product.ProductCreated;
+import com.shopflow.contracts.product.ProductPriceChanged;
+import com.shopflow.contracts.product.ProductUpdated;
 import com.shopflow.contracts.product.ProductVariantAdded;
 import com.shopflow.kernel.money.Money;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -58,5 +61,39 @@ class ProductEventMapperTest {
         assertThat(event.getVariant().getColor()).isEqualTo("Rouge");
         assertThat(event.getVariant().getPrice().getAmount()).isEqualTo(16_000);
         assertThat(event.getVariant().getPrice().getCurrency()).isEqualTo("EUR");
+    }
+
+    @Test
+    @DisplayName("SHOULD copy the product id and the changed fields WHEN mapping to ProductUpdated")
+    void shouldCopyEveryFieldWhenMappingToProductUpdated() {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+
+        // WHEN
+        ProductUpdated event = productEventMapper.toProductUpdated(productId, List.of("name", "description"));
+
+        // THEN
+        assertThat(event.getProductId()).isEqualTo(productId.toString());
+        assertThat(event.getChangedFields()).containsExactly("name", "description");
+    }
+
+    @Test
+    @DisplayName("SHOULD copy the product, the sku and both prices WHEN mapping to ProductPriceChanged")
+    void shouldCopyEveryFieldWhenMappingToProductPriceChanged() {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        Sku sku = Sku.newSku();
+
+        // WHEN
+        ProductPriceChanged event = productEventMapper.toProductPriceChanged(productId, sku, Money.euros(16_000),
+                Money.euros(12_900));
+
+        // THEN
+        assertThat(event.getProductId()).isEqualTo(productId.toString());
+        assertThat(event.getSku()).isEqualTo(sku.toString());
+        assertThat(event.getOldPrice().getAmount()).isEqualTo(16_000);
+        assertThat(event.getOldPrice().getCurrency()).isEqualTo("EUR");
+        assertThat(event.getNewPrice().getAmount()).isEqualTo(12_900);
+        assertThat(event.getNewPrice().getCurrency()).isEqualTo("EUR");
     }
 }

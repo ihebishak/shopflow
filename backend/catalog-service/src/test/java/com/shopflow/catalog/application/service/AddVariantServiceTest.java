@@ -13,6 +13,7 @@ import com.shopflow.catalog.domain.Variant;
 import com.shopflow.kernel.money.Money;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
 import java.time.Instant;
@@ -56,10 +57,12 @@ class AddVariantServiceTest {
         assertThat(variant.getSize()).isEqualTo("42");
         assertThat(variant.getColor()).isEqualTo("Rouge");
         assertThat(variant.getPrice()).isEqualTo(PRICE);
-        assertThat(airMax.getVariants()).containsExactly(variant);
+        ArgumentCaptor<Product> saved = ArgumentCaptor.forClass(Product.class);
         InOrder saveThenPublish = inOrder(productRepository, productEventPublisher);
-        saveThenPublish.verify(productRepository).save(airMax);
+        saveThenPublish.verify(productRepository).save(saved.capture());
         saveThenPublish.verify(productEventPublisher).publishProductVariantAdded(airMax.getId(), variant);
+        assertThat(saved.getValue().getId()).isEqualTo(airMax.getId());
+        assertThat(saved.getValue().getVariants()).containsExactly(variant);
     }
 
     @Test
@@ -98,8 +101,7 @@ class AddVariantServiceTest {
     @DisplayName("SHOULD save nothing WHEN the variant already exists")
     void shouldSaveNothingWhenVariantAlreadyExists() {
         // GIVEN
-        Product airMax = existingProductOf(KARIM);
-        airMax.addVariant("42", "Rouge", PRICE);
+        Product airMax = existing(draftOf(KARIM).addVariant(Variant.create("42", "Rouge", PRICE)));
 
         // WHEN
         Throwable error = catchThrowable(() -> addVariantService.addVariant(commandOf(KARIM, airMax.getId(), "42")));
@@ -115,7 +117,7 @@ class AddVariantServiceTest {
     void shouldPublishNothingWhenProductChangedBeforeBeingSaved() {
         // GIVEN
         Product airMax = existingProductOf(KARIM);
-        doThrow(new ProductModifiedConcurrentlyException(airMax.getId())).when(productRepository).save(airMax);
+        doThrow(new ProductModifiedConcurrentlyException(airMax.getId())).when(productRepository).save(any());
 
         // WHEN
         Throwable error = catchThrowable(() -> addVariantService.addVariant(commandOf(KARIM, airMax.getId(), "42")));
@@ -126,9 +128,16 @@ class AddVariantServiceTest {
     }
 
     private Product existingProductOf(final SellerId sellerId) {
-        Product product = Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
+        return existing(draftOf(sellerId));
+    }
+
+    private Product existing(final Product product) {
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
         return product;
+    }
+
+    private static Product draftOf(final SellerId sellerId) {
+        return Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
     }
 
     private static AddVariantCommand commandOf(final SellerId sellerId, final ProductId productId, final String size) {

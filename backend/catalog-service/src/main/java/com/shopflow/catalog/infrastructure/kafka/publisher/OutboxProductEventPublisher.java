@@ -3,11 +3,15 @@ package com.shopflow.catalog.infrastructure.kafka.publisher;
 import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
+import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.catalog.infrastructure.kafka.mapper.ProductEventMapper;
+import com.shopflow.kernel.money.Money;
 import com.shopflow.starter.outbox.OutboxPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * Adaptateur du port {@link ProductEventPublisher} : écrit l'événement dans l'outbox, dans la transaction en cours.
@@ -30,5 +34,17 @@ public class OutboxProductEventPublisher implements ProductEventPublisher {
     @Override
     public void publishProductVariantAdded(final ProductId productId, final Variant variant) {
         outboxPublisher.publish(TOPIC, productId.toString(), productEventMapper.toProductVariantAdded(productId, variant));
+    }
+
+    @Override
+    public void publishProductUpdated(final ProductId productId, final List<String> changedFields) {
+        outboxPublisher.publish(TOPIC, productId.toString(), productEventMapper.toProductUpdated(productId, changedFields));
+    }
+
+    @Override
+    public void publishProductPriceChanged(final ProductId productId, final Sku sku, final Money oldPrice,
+                                           final Money newPrice) {
+        outboxPublisher.publish(TOPIC, productId.toString(),
+                productEventMapper.toProductPriceChanged(productId, sku, oldPrice, newPrice));
     }
 }

@@ -77,8 +77,8 @@ class ProductDocumentMapperTest {
     @DisplayName("SHOULD copy every variant field WHEN mapping a product with variants to a document")
     void shouldCopyEveryVariantFieldWhenMappingProductToDocument() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, NOW);
-        Variant variant = airMax.addVariant("42", "Rouge", Money.euros(16_000));
+        Variant variant = Variant.create("42", "Rouge", Money.euros(16_000));
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, NOW).addVariant(variant);
 
         // WHEN
         ProductDocument document = productDocumentMapper.toDocument(airMax);
@@ -97,9 +97,9 @@ class ProductDocumentMapperTest {
     @DisplayName("SHOULD rebuild the same variants WHEN mapping a document back to the domain")
     void shouldRebuildSameVariantsWhenMappingDocumentBack() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, NOW);
-        airMax.addVariant("42", "Rouge", Money.euros(16_000));
-        airMax.addVariant("43", "Noir", Money.euros(17_000));
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, NOW)
+                .addVariant(Variant.create("42", "Rouge", Money.euros(16_000)))
+                .addVariant(Variant.create("43", "Noir", Money.euros(17_000)));
         ProductDocument document = productDocumentMapper.toDocument(airMax);
 
         // WHEN

@@ -134,8 +134,8 @@ class AddVariantTransactionTest {
     }
 
     private Product savedAirMax() {
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
-        airMax.addVariant("42", "Rouge", PRICE);
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now())
+                .addVariant(Variant.create("42", "Rouge", PRICE));
         productRepository.save(airMax);
         return airMax;
     }
