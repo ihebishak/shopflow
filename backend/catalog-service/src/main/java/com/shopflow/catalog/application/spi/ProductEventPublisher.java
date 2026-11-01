@@ -22,4 +22,6 @@ public interface ProductEventPublisher {
     void publishProductUpdated(ProductId productId, List<String> changedFields);
 
     void publishProductPriceChanged(ProductId productId, Sku sku, Money oldPrice, Money newPrice);
+
+    void publishProductPublished(Product product);
 }

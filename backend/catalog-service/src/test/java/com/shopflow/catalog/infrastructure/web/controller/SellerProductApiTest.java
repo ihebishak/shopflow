@@ -378,6 +378,94 @@ class SellerProductApiTest {
         assertThat(readVariants(otherProduct)).containsExactly(other);
     }
 
+    @Test
+    @DisplayName("SHOULD keep the product published with its variants WHEN reading it back after the publication")
+    void shouldKeepProductPublishedWhenReadingItBack() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        VariantResponseDto variant = addVariant(product, "seller-karim", "42", VariantResponseDto.class).getBody();
+
+        // WHEN
+        ResponseEntity<ProductResponseDto> published = publish(product, "seller-karim", ProductResponseDto.class);
+
+        // THEN
+        assertThat(published.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(published.getBody().getStatus()).isEqualTo("PUBLISHED");
+        assertThat(readProduct(product)).isEqualTo(published.getBody());
+        assertThat(readVariants(product)).containsExactly(variant);
+    }
+
+    @Test
+    @DisplayName("SHOULD return the product as it was WHEN it is already published")
+    void shouldReturnSameProductWhenAlreadyPublished() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        addVariant(product, "seller-karim", "42", VariantResponseDto.class);
+        ProductResponseDto published = publish(product, "seller-karim", ProductResponseDto.class).getBody();
+
+        // WHEN
+        ResponseEntity<ProductResponseDto> again = publish(product, "seller-karim", ProductResponseDto.class);
+
+        // THEN
+        assertThat(again.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(again.getBody()).isEqualTo(published);
+    }
+
+    @Test
+    @DisplayName("SHOULD stay published WHEN the seller updates the product afterwards")
+    void shouldStayPublishedWhenSellerUpdatesProductAfterwards() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        addVariant(product, "seller-karim", "42", VariantResponseDto.class);
+        publish(product, "seller-karim", ProductResponseDto.class);
+
+        // WHEN
+        ResponseEntity<ProductResponseDto> updated = updateProduct(product, "seller-karim", ProductResponseDto.class,
+                airMaxUpdate().name("Air Max 90 OG").build());
+
+        // THEN
+        assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(readProduct(product).getStatus()).isEqualTo("PUBLISHED");
+        assertThat(readProduct(product).getName()).isEqualTo("Air Max 90 OG");
+    }
+
+    @Test
+    @DisplayName("SHOULD return 409 PRODUCT_WITHOUT_VARIANT and stay a draft WHEN the product has no variant")
+    void shouldReturn409WhenPublishingProductWithoutVariant() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+
+        // WHEN
+        ResponseEntity<JsonNode> response = publish(product, "seller-karim", JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("PRODUCT_WITHOUT_VARIANT");
+        assertThat(readProduct(product).getStatus()).isEqualTo("DRAFT");
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 PRODUCT_NOT_FOUND and stay a draft WHEN another seller publishes the product")
+    void shouldReturn404WhenAnotherSellerPublishesProduct() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        addVariant(product, "seller-karim", "42", VariantResponseDto.class);
+
+        // WHEN
+        ResponseEntity<JsonNode> response = publish(product, "seller-lea", JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("PRODUCT_NOT_FOUND");
+        assertThat(readProduct(product).getStatus()).isEqualTo("DRAFT");
+    }
+
+    private <T> ResponseEntity<T> publish(final URI product, final String sellerId, final Class<T> responseType) {
+        return restTemplate.exchange(product.getPath() + "/publish", HttpMethod.POST,
+                new HttpEntity<>(sellerHeader(sellerId)), responseType);
+    }
+
     private <T> ResponseEntity<T> changePrice(final URI product, final String sellerId, final String sku,
                                               final long amount, final Class<T> responseType) {
         ChangeVariantPriceRequestDto requestDto = ChangeVariantPriceRequestDto.builder()

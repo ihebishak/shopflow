@@ -90,5 +90,10 @@ class CreateProductServiceTest {
                                                final Money newPrice) {
             throw new UnsupportedOperationException("creating a product changes no price");
         }
+
+        @Override
+        public void publishProductPublished(final Product product) {
+            throw new UnsupportedOperationException("creating a product publishes nothing");
+        }
     }
 }

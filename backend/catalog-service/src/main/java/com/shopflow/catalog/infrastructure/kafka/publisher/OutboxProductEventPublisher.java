@@ -47,4 +47,9 @@ public class OutboxProductEventPublisher implements ProductEventPublisher {
         outboxPublisher.publish(TOPIC, productId.toString(),
                 productEventMapper.toProductPriceChanged(productId, sku, oldPrice, newPrice));
     }
+
+    @Override
+    public void publishProductPublished(final Product product) {
+        outboxPublisher.publish(TOPIC, product.getId().toString(), productEventMapper.toProductPublished(product));
+    }
 }

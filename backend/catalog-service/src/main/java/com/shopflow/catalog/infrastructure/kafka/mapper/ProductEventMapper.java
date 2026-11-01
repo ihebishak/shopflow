@@ -7,6 +7,7 @@ import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.contracts.product.ProductCreated;
 import com.shopflow.contracts.product.ProductPriceChanged;
+import com.shopflow.contracts.product.ProductPublished;
 import com.shopflow.contracts.product.ProductUpdated;
 import com.shopflow.contracts.product.ProductVariant;
 import com.shopflow.contracts.product.ProductVariantAdded;
@@ -40,6 +41,9 @@ public interface ProductEventMapper {
     @Mapping(target = "oldPriceBuilder", ignore = true)
     @Mapping(target = "newPriceBuilder", ignore = true)
     ProductPriceChanged toProductPriceChanged(ProductId productId, Sku sku, Money oldPrice, Money newPrice);
+
+    @Mapping(target = "productId", source = "id")
+    ProductPublished toProductPublished(Product product);
 
     default String map(final ProductId productId) {
         return productId.toString();
