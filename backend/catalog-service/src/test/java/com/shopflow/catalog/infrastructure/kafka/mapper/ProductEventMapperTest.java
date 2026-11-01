@@ -6,12 +6,14 @@ import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.contracts.product.ProductCreated;
+import com.shopflow.contracts.product.ProductUpdated;
 import com.shopflow.contracts.product.ProductVariantAdded;
 import com.shopflow.kernel.money.Money;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -58,5 +60,19 @@ class ProductEventMapperTest {
         assertThat(event.getVariant().getColor()).isEqualTo("Rouge");
         assertThat(event.getVariant().getPrice().getAmount()).isEqualTo(16_000);
         assertThat(event.getVariant().getPrice().getCurrency()).isEqualTo("EUR");
+    }
+
+    @Test
+    @DisplayName("SHOULD copy the product id and the changed fields WHEN mapping to ProductUpdated")
+    void shouldCopyEveryFieldWhenMappingToProductUpdated() {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+
+        // WHEN
+        ProductUpdated event = productEventMapper.toProductUpdated(productId, List.of("name", "description"));
+
+        // THEN
+        assertThat(event.getProductId()).isEqualTo(productId.toString());
+        assertThat(event.getChangedFields()).containsExactly("name", "description");
     }
 }

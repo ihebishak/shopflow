@@ -9,6 +9,8 @@ import com.shopflow.starter.outbox.OutboxPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 /**
  * Adaptateur du port {@link ProductEventPublisher} : écrit l'événement dans l'outbox, dans la transaction en cours.
  * Le relais du starter le publie ensuite sur Kafka, avec l'identifiant du produit comme clé.
@@ -30,5 +32,10 @@ public class OutboxProductEventPublisher implements ProductEventPublisher {
     @Override
     public void publishProductVariantAdded(final ProductId productId, final Variant variant) {
         outboxPublisher.publish(TOPIC, productId.toString(), productEventMapper.toProductVariantAdded(productId, variant));
+    }
+
+    @Override
+    public void publishProductUpdated(final ProductId productId, final List<String> changedFields) {
+        outboxPublisher.publish(TOPIC, productId.toString(), productEventMapper.toProductUpdated(productId, changedFields));
     }
 }

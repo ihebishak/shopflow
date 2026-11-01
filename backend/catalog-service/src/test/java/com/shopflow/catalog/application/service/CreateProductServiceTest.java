@@ -77,5 +77,10 @@ class CreateProductServiceTest {
         public void publishProductVariantAdded(final ProductId productId, final Variant variant) {
             throw new UnsupportedOperationException("creating a product adds no variant");
         }
+
+        @Override
+        public void publishProductUpdated(final ProductId productId, final List<String> changedFields) {
+            throw new UnsupportedOperationException("creating a product updates nothing");
+        }
     }
 }
