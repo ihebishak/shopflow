@@ -157,6 +157,38 @@ public final class Product {
         return List.copyOf(changedFields);
     }
 
+    /**
+     * Met le produit en vente, depuis un brouillon ou après une dépublication.
+     *
+     * @return le produit publié, ou ce produit s'il l'était déjà
+     * @throws ProductWithoutVariantException si le produit n'a aucune variante
+     */
+    public Product publish() {
+        if (status == ProductStatus.PUBLISHED) {
+            return this;
+        }
+        if (variants.isEmpty()) {
+            throw new ProductWithoutVariantException(id);
+        }
+        return toBuilder().status(ProductStatus.PUBLISHED).build();
+    }
+
+    /**
+     * Retire le produit de la vente.
+     *
+     * @return le produit dépublié, ou ce produit s'il l'était déjà
+     * @throws ProductNotPublishedException si le produit est encore un brouillon
+     */
+    public Product unpublish() {
+        if (status == ProductStatus.UNPUBLISHED) {
+            return this;
+        }
+        if (status == ProductStatus.DRAFT) {
+            throw new ProductNotPublishedException(id);
+        }
+        return toBuilder().status(ProductStatus.UNPUBLISHED).build();
+    }
+
     public Optional<String> getDescription() {
         return Optional.ofNullable(description);
     }
