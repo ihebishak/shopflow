@@ -3,6 +3,8 @@ package com.shopflow.catalog.infrastructure.web.mapper;
 import com.shopflow.catalog.application.api.command.AddVariantCommand;
 import com.shopflow.catalog.application.api.command.ChangeVariantPriceCommand;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
+import com.shopflow.catalog.application.api.command.PublishProductCommand;
+import com.shopflow.catalog.application.api.command.UnpublishProductCommand;
 import com.shopflow.catalog.application.api.command.UpdateProductCommand;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
@@ -110,6 +112,34 @@ class ProductRestMapperTest {
         assertThat(command.getProductId()).isEqualTo(productId);
         assertThat(command.getSku()).isEqualTo(sku);
         assertThat(command.getPrice()).isEqualTo(Money.euros(12900));
+    }
+
+    @Test
+    @DisplayName("SHOULD build the command with the seller and the product WHEN mapping an unpublication")
+    void shouldBuildCommandWhenMappingUnpublication() {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+
+        // WHEN
+        UnpublishProductCommand command = productRestMapper.toUnpublishCommand(KARIM, productId);
+
+        // THEN
+        assertThat(command.getSellerId()).isEqualTo(KARIM);
+        assertThat(command.getProductId()).isEqualTo(productId);
+    }
+
+    @Test
+    @DisplayName("SHOULD build the command with the seller and the product WHEN mapping a publication")
+    void shouldBuildCommandWhenMappingPublication() {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+
+        // WHEN
+        PublishProductCommand command = productRestMapper.toPublishCommand(KARIM, productId);
+
+        // THEN
+        assertThat(command.getSellerId()).isEqualTo(KARIM);
+        assertThat(command.getProductId()).isEqualTo(productId);
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.shopflow.catalog.application.spi;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.Sku;
+import com.shopflow.catalog.domain.UnpublishReason;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.kernel.money.Money;
 
@@ -22,4 +23,8 @@ public interface ProductEventPublisher {
     void publishProductUpdated(ProductId productId, List<String> changedFields);
 
     void publishProductPriceChanged(ProductId productId, Sku sku, Money oldPrice, Money newPrice);
+
+    void publishProductPublished(Product product);
+
+    void publishProductUnpublished(Product product, UnpublishReason reason);
 }

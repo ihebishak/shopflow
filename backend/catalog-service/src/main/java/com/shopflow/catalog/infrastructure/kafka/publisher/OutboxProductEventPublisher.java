@@ -4,6 +4,7 @@ import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.Sku;
+import com.shopflow.catalog.domain.UnpublishReason;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.catalog.infrastructure.kafka.mapper.ProductEventMapper;
 import com.shopflow.kernel.money.Money;
@@ -46,5 +47,16 @@ public class OutboxProductEventPublisher implements ProductEventPublisher {
                                            final Money newPrice) {
         outboxPublisher.publish(TOPIC, productId.toString(),
                 productEventMapper.toProductPriceChanged(productId, sku, oldPrice, newPrice));
+    }
+
+    @Override
+    public void publishProductPublished(final Product product) {
+        outboxPublisher.publish(TOPIC, product.getId().toString(), productEventMapper.toProductPublished(product));
+    }
+
+    @Override
+    public void publishProductUnpublished(final Product product, final UnpublishReason reason) {
+        outboxPublisher.publish(TOPIC, product.getId().toString(),
+                productEventMapper.toProductUnpublished(product, reason));
     }
 }

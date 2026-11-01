@@ -12,9 +12,12 @@ import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import com.shopflow.contracts.product.ProductCreated;
 import com.shopflow.contracts.product.ProductPriceChanged;
+import com.shopflow.contracts.product.ProductPublished;
+import com.shopflow.contracts.product.ProductUnpublished;
 import com.shopflow.contracts.product.ProductUpdated;
 import com.shopflow.contracts.product.ProductVariant;
 import com.shopflow.contracts.product.ProductVariantAdded;
+import com.shopflow.contracts.product.UnpublishReason;
 import com.shopflow.starter.cloudevents.EventMetadata;
 import com.shopflow.starter.outbox.OutboxPublisher;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
@@ -287,6 +290,117 @@ class ProductEventPublicationTest {
                 new HttpEntity<>(headers("corr-read")), ProductResponseDto.class).getBody();
         assertThat(product.getVariants().get(0).getPrice().getAmount())
                 .as("le prix est annulé avec l'événement").isEqualTo(16_000);
+    }
+
+    @Test
+    @DisplayName("SHOULD publish ProductPublished on Kafka with its envelope WHEN a seller publishes a product")
+    void shouldPublishProductPublishedWhenSellerPublishesProduct() {
+        // GIVEN
+        String productId = createdProductId();
+        addedVariantSku(productId);
+        String correlationId = "corr-" + UUID.randomUUID();
+
+        // WHEN
+        ResponseEntity<ProductResponseDto> response = restTemplate.exchange(publishOf(productId), HttpMethod.POST,
+                new HttpEntity<>(headers(correlationId)), ProductResponseDto.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        ConsumerRecord<String, SpecificRecord> record = awaitEvent(productId, ProductPublished.class);
+
+        ProductPublished event = (ProductPublished) record.value();
+        assertThat(event.getProductId()).isEqualTo(productId);
+        assertThat(event.getSellerId()).isEqualTo("seller-karim");
+
+        EventMetadata metadata = EventMetadata.fromHeaders(record.headers()).orElseThrow();
+        assertThat(metadata.getType()).isEqualTo("shopflow.product.ProductPublished.v1");
+        assertThat(metadata.getSource()).isEqualTo("/catalog-service");
+        assertThat(metadata.getSubject()).isEqualTo(productId);
+        assertThat(metadata.getCorrelationId()).as("même parcours que la requête HTTP").isEqualTo(correlationId);
+    }
+
+    @Test
+    @DisplayName("SHOULD stay a draft WHEN the event cannot be written to the outbox")
+    void shouldStayDraftWhenEventCannotBeWritten() {
+        // GIVEN
+        String productId = createdProductId();
+        addedVariantSku(productId);
+        doThrow(new IllegalStateException("outbox unavailable"))
+                .when(outboxPublisher).publish(anyString(), anyString(), any(SpecificRecord.class));
+
+        // WHEN
+        ResponseEntity<JsonNode> response = restTemplate.exchange(publishOf(productId), HttpMethod.POST,
+                new HttpEntity<>(headers("corr-rollback")), JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("INTERNAL_ERROR");
+        ProductResponseDto product = restTemplate.exchange(PRODUCTS + "/" + productId, HttpMethod.GET,
+                new HttpEntity<>(headers("corr-read")), ProductResponseDto.class).getBody();
+        assertThat(product.getStatus()).as("la publication est annulée avec l'événement").isEqualTo("DRAFT");
+    }
+
+    @Test
+    @DisplayName("SHOULD publish ProductUnpublished on Kafka with its reason WHEN a seller unpublishes a product")
+    void shouldPublishProductUnpublishedWhenSellerUnpublishesProduct() {
+        // GIVEN
+        String productId = publishedProductId();
+        String correlationId = "corr-" + UUID.randomUUID();
+
+        // WHEN
+        ResponseEntity<ProductResponseDto> response = restTemplate.exchange(unpublishOf(productId), HttpMethod.POST,
+                new HttpEntity<>(headers(correlationId)), ProductResponseDto.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        ConsumerRecord<String, SpecificRecord> record = awaitEvent(productId, ProductUnpublished.class);
+
+        ProductUnpublished event = (ProductUnpublished) record.value();
+        assertThat(event.getProductId()).isEqualTo(productId);
+        assertThat(event.getSellerId()).isEqualTo("seller-karim");
+        assertThat(event.getReason()).isEqualTo(UnpublishReason.SELLER);
+
+        EventMetadata metadata = EventMetadata.fromHeaders(record.headers()).orElseThrow();
+        assertThat(metadata.getType()).isEqualTo("shopflow.product.ProductUnpublished.v1");
+        assertThat(metadata.getSource()).isEqualTo("/catalog-service");
+        assertThat(metadata.getSubject()).isEqualTo(productId);
+        assertThat(metadata.getCorrelationId()).as("même parcours que la requête HTTP").isEqualTo(correlationId);
+    }
+
+    @Test
+    @DisplayName("SHOULD stay published WHEN the event cannot be written to the outbox")
+    void shouldStayPublishedWhenEventCannotBeWritten() {
+        // GIVEN
+        String productId = publishedProductId();
+        doThrow(new IllegalStateException("outbox unavailable"))
+                .when(outboxPublisher).publish(anyString(), anyString(), any(SpecificRecord.class));
+
+        // WHEN
+        ResponseEntity<JsonNode> response = restTemplate.exchange(unpublishOf(productId), HttpMethod.POST,
+                new HttpEntity<>(headers("corr-rollback")), JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("INTERNAL_ERROR");
+        ProductResponseDto product = restTemplate.exchange(PRODUCTS + "/" + productId, HttpMethod.GET,
+                new HttpEntity<>(headers("corr-read")), ProductResponseDto.class).getBody();
+        assertThat(product.getStatus()).as("la dépublication est annulée avec l'événement").isEqualTo("PUBLISHED");
+    }
+
+    private String publishedProductId() {
+        String productId = createdProductId();
+        addedVariantSku(productId);
+        restTemplate.exchange(publishOf(productId), HttpMethod.POST, new HttpEntity<>(headers("corr-publish")),
+                ProductResponseDto.class);
+        return productId;
+    }
+
+    private static String unpublishOf(final String productId) {
+        return PRODUCTS + "/" + productId + "/unpublish";
+    }
+
+    private static String publishOf(final String productId) {
+        return PRODUCTS + "/" + productId + "/publish";
     }
 
     private String addedVariantSku(final String productId) {

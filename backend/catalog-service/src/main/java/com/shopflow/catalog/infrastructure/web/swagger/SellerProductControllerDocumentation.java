@@ -22,8 +22,8 @@ import java.util.UUID;
  * Documentation OpenAPI de l'API produits côté vendeur (page Swagger UI).
  * Portée par une interface pour que le contrôleur reste sans annotations de documentation.
  */
-@Tag(name = "Produits (vendeur)", description = "Un vendeur crée, consulte et modifie ses produits, leur ajoute des variantes et change "
-        + "leurs prix.")
+@Tag(name = "Produits (vendeur)", description = "Un vendeur crée, consulte et modifie ses produits, leur ajoute des variantes, change "
+        + "leurs prix, les publie et les dépublie.")
 public interface SellerProductControllerDocumentation {
 
     String SELLER_HEADER_DESCRIPTION =
@@ -124,4 +124,46 @@ public interface SellerProductControllerDocumentation {
             @Parameter(description = "Identifiant du produit (UUID).") UUID productId,
             @Parameter(description = "SKU de la variante (UUID).") UUID sku,
             ChangeVariantPriceRequestDto requestDto);
+
+    @Operation(summary = "Publier un de ses produits",
+            description = "Met le produit en vente, depuis un brouillon ou après une dépublication. Il lui faut au "
+                    + "moins une variante. Les autres services sont prévenus.")
+    @ApiResponse(responseCode = "200", description = "Le produit publié, ou inchangé s'il l'était déjà.")
+    @ApiResponse(responseCode = "400",
+            description = "Requête invalide. Codes : INVALID_PARAMETER, INVALID_SELLER_ID, MISSING_HEADER.",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "404",
+            description = "Produit inexistant ou appartenant à un autre vendeur. Code : PRODUCT_NOT_FOUND.",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "409",
+            description = "Le produit n'a aucune variante (PRODUCT_WITHOUT_VARIANT), ou il a changé pendant la "
+                    + "publication (PRODUCT_MODIFIED_CONCURRENTLY) : il suffit alors de réessayer.",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    ProductResponseDto publishProduct(
+            @Parameter(description = SELLER_HEADER_DESCRIPTION, example = "seller-karim") String sellerId,
+            @Parameter(description = "Identifiant du produit (UUID).") UUID productId);
+
+    @Operation(summary = "Dépublier un de ses produits",
+            description = "Retire le produit de la vente. Il pourra être publié de nouveau. Les autres services sont "
+                    + "prévenus, avec le motif SELLER.")
+    @ApiResponse(responseCode = "200", description = "Le produit dépublié, ou inchangé s'il l'était déjà.")
+    @ApiResponse(responseCode = "400",
+            description = "Requête invalide. Codes : INVALID_PARAMETER, INVALID_SELLER_ID, MISSING_HEADER.",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "404",
+            description = "Produit inexistant ou appartenant à un autre vendeur. Code : PRODUCT_NOT_FOUND.",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "409",
+            description = "Le produit est encore un brouillon (PRODUCT_NOT_PUBLISHED), ou il a changé pendant la "
+                    + "dépublication (PRODUCT_MODIFIED_CONCURRENTLY) : il suffit alors de réessayer.",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    ProductResponseDto unpublishProduct(
+            @Parameter(description = SELLER_HEADER_DESCRIPTION, example = "seller-karim") String sellerId,
+            @Parameter(description = "Identifiant du produit (UUID).") UUID productId);
 }

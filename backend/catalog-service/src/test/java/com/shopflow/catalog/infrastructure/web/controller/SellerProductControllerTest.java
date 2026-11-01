@@ -5,16 +5,22 @@ import com.shopflow.catalog.application.api.AddVariantUseCase;
 import com.shopflow.catalog.application.api.ChangeVariantPriceUseCase;
 import com.shopflow.catalog.application.api.CreateProductUseCase;
 import com.shopflow.catalog.application.api.GetSellerProductUseCase;
+import com.shopflow.catalog.application.api.PublishProductUseCase;
+import com.shopflow.catalog.application.api.UnpublishProductUseCase;
 import com.shopflow.catalog.application.api.UpdateProductUseCase;
 import com.shopflow.catalog.application.api.command.AddVariantCommand;
 import com.shopflow.catalog.application.api.command.ChangeVariantPriceCommand;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
+import com.shopflow.catalog.application.api.command.PublishProductCommand;
+import com.shopflow.catalog.application.api.command.UnpublishProductCommand;
 import com.shopflow.catalog.application.api.command.UpdateProductCommand;
 import com.shopflow.catalog.domain.DuplicateVariantException;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
 import com.shopflow.catalog.domain.ProductNotFoundException;
+import com.shopflow.catalog.domain.ProductNotPublishedException;
+import com.shopflow.catalog.domain.ProductWithoutVariantException;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
@@ -91,6 +97,12 @@ class SellerProductControllerTest {
 
     @MockitoBean
     private ChangeVariantPriceUseCase changeVariantPriceUseCase;
+
+    @MockitoBean
+    private PublishProductUseCase publishProductUseCase;
+
+    @MockitoBean
+    private UnpublishProductUseCase unpublishProductUseCase;
 
     @Test
     @DisplayName("SHOULD return 201 with the location and the product WHEN the product is valid")
@@ -638,6 +650,215 @@ class SellerProductControllerTest {
         putPrice(productId, Sku.newSku(), priced(12900L, "EUR"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PRODUCT_MODIFIED_CONCURRENTLY"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 200 with the product WHEN a seller publishes it")
+    void shouldReturn200WhenSellerPublishesProduct() throws Exception {
+        // GIVEN
+        Product airMax = airMaxOf(KARIM).addVariant(Variant.create("42", "Rouge", Money.euros(16000))).publish();
+        when(publishProductUseCase.publishProduct(any(PublishProductCommand.class))).thenReturn(airMax);
+
+        // WHEN / THEN
+        postPublish(airMax.getId())
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(airMax.getId().toString()))
+                .andExpect(jsonPath("$.status").value("PUBLISHED"));
+
+        ArgumentCaptor<PublishProductCommand> command = ArgumentCaptor.forClass(PublishProductCommand.class);
+        verify(publishProductUseCase).publishProduct(command.capture());
+        assertThat(command.getValue().getSellerId()).isEqualTo(KARIM);
+        assertThat(command.getValue().getProductId()).isEqualTo(airMax.getId());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 MISSING_HEADER WHEN publishing without the seller header")
+    void shouldReturn400WhenPublishingWithoutSellerHeader() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(post(publishOf(ProductId.newId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MISSING_HEADER"));
+        verify(publishProductUseCase, never()).publishProduct(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 INVALID_SELLER_ID WHEN publishing with a blank seller header")
+    void shouldReturn400WhenPublishingWithBlankSellerHeader() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(post(publishOf(ProductId.newId())).header(SellerProductController.SELLER_HEADER, "   "))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SELLER_ID"));
+        verify(publishProductUseCase, never()).publishProduct(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 INVALID_PARAMETER WHEN publishing with a product id that is not a UUID")
+    void shouldReturn400WhenPublishingWithProductIdThatIsNotUuid() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(post(PRODUCTS + "/not-a-uuid/publish")
+                        .header(SellerProductController.SELLER_HEADER, "seller-karim"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+        verify(publishProductUseCase, never()).publishProduct(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 PRODUCT_NOT_FOUND WHEN publishing a product of another seller")
+    void shouldReturn404WhenPublishingProductOfAnotherSeller() throws Exception {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        when(publishProductUseCase.publishProduct(any(PublishProductCommand.class)))
+                .thenThrow(new ProductNotFoundException(productId));
+
+        // WHEN / THEN
+        postPublish(productId)
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("PRODUCT_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 409 PRODUCT_WITHOUT_VARIANT WHEN publishing a product with no variant")
+    void shouldReturn409WhenPublishingProductWithNoVariant() throws Exception {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        when(publishProductUseCase.publishProduct(any(PublishProductCommand.class)))
+                .thenThrow(new ProductWithoutVariantException(productId));
+
+        // WHEN / THEN
+        postPublish(productId)
+                .andExpect(status().isConflict())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("PRODUCT_WITHOUT_VARIANT"))
+                .andExpect(jsonPath("$.detail").value("Product " + productId + " has no variant"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 409 PRODUCT_MODIFIED_CONCURRENTLY WHEN the product changes during the publication")
+    void shouldReturn409WhenProductChangesDuringPublication() throws Exception {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        when(publishProductUseCase.publishProduct(any(PublishProductCommand.class)))
+                .thenThrow(new ProductModifiedConcurrentlyException(productId));
+
+        // WHEN / THEN
+        postPublish(productId)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PRODUCT_MODIFIED_CONCURRENTLY"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 200 with the product WHEN a seller unpublishes it")
+    void shouldReturn200WhenSellerUnpublishesProduct() throws Exception {
+        // GIVEN
+        Product airMax = airMaxOf(KARIM).addVariant(Variant.create("42", "Rouge", Money.euros(16000))).publish()
+                .unpublish();
+        when(unpublishProductUseCase.unpublishProduct(any(UnpublishProductCommand.class))).thenReturn(airMax);
+
+        // WHEN / THEN
+        postUnpublish(airMax.getId())
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(airMax.getId().toString()))
+                .andExpect(jsonPath("$.status").value("UNPUBLISHED"));
+
+        ArgumentCaptor<UnpublishProductCommand> command = ArgumentCaptor.forClass(UnpublishProductCommand.class);
+        verify(unpublishProductUseCase).unpublishProduct(command.capture());
+        assertThat(command.getValue().getSellerId()).isEqualTo(KARIM);
+        assertThat(command.getValue().getProductId()).isEqualTo(airMax.getId());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 MISSING_HEADER WHEN unpublishing without the seller header")
+    void shouldReturn400WhenUnpublishingWithoutSellerHeader() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(post(unpublishOf(ProductId.newId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MISSING_HEADER"));
+        verify(unpublishProductUseCase, never()).unpublishProduct(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 INVALID_SELLER_ID WHEN unpublishing with a blank seller header")
+    void shouldReturn400WhenUnpublishingWithBlankSellerHeader() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(post(unpublishOf(ProductId.newId())).header(SellerProductController.SELLER_HEADER, "   "))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SELLER_ID"));
+        verify(unpublishProductUseCase, never()).unpublishProduct(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 INVALID_PARAMETER WHEN unpublishing with a product id that is not a UUID")
+    void shouldReturn400WhenUnpublishingWithProductIdThatIsNotUuid() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(post(PRODUCTS + "/not-a-uuid/unpublish")
+                        .header(SellerProductController.SELLER_HEADER, "seller-karim"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+        verify(unpublishProductUseCase, never()).unpublishProduct(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 PRODUCT_NOT_FOUND WHEN unpublishing a product of another seller")
+    void shouldReturn404WhenUnpublishingProductOfAnotherSeller() throws Exception {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        when(unpublishProductUseCase.unpublishProduct(any(UnpublishProductCommand.class)))
+                .thenThrow(new ProductNotFoundException(productId));
+
+        // WHEN / THEN
+        postUnpublish(productId)
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("PRODUCT_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 409 PRODUCT_NOT_PUBLISHED WHEN unpublishing a draft")
+    void shouldReturn409WhenUnpublishingDraft() throws Exception {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        when(unpublishProductUseCase.unpublishProduct(any(UnpublishProductCommand.class)))
+                .thenThrow(new ProductNotPublishedException(productId));
+
+        // WHEN / THEN
+        postUnpublish(productId)
+                .andExpect(status().isConflict())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("PRODUCT_NOT_PUBLISHED"))
+                .andExpect(jsonPath("$.detail").value("Product " + productId + " is not published"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 409 PRODUCT_MODIFIED_CONCURRENTLY WHEN the product changes during the unpublication")
+    void shouldReturn409WhenProductChangesDuringUnpublication() throws Exception {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        when(unpublishProductUseCase.unpublishProduct(any(UnpublishProductCommand.class)))
+                .thenThrow(new ProductModifiedConcurrentlyException(productId));
+
+        // WHEN / THEN
+        postUnpublish(productId)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PRODUCT_MODIFIED_CONCURRENTLY"));
+    }
+
+    private ResultActions postUnpublish(final ProductId productId) throws Exception {
+        return mockMvc.perform(post(unpublishOf(productId)).header(SellerProductController.SELLER_HEADER, "seller-karim"));
+    }
+
+    private static String unpublishOf(final ProductId productId) {
+        return PRODUCTS + "/" + productId + "/unpublish";
+    }
+
+    private ResultActions postPublish(final ProductId productId) throws Exception {
+        return mockMvc.perform(post(publishOf(productId)).header(SellerProductController.SELLER_HEADER, "seller-karim"));
+    }
+
+    private static String publishOf(final ProductId productId) {
+        return PRODUCTS + "/" + productId + "/publish";
     }
 
     private ResultActions putPrice(final ProductId productId, final Sku sku,

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -502,13 +503,160 @@ class ProductTest {
         assertThat(error).isInstanceOf(VariantNotFoundException.class);
     }
 
+    @Test
+    @DisplayName("SHOULD publish the product WHEN a draft has a variant")
+    void shouldPublishWhenDraftHasVariant() {
+        // GIVEN
+        Product product = restoredWith(ProductStatus.DRAFT, Variant.create("42", "Rouge", PRICE));
+
+        // WHEN
+        Product published = product.publish();
+
+        // THEN
+        assertThat(published.getStatus()).isEqualTo(ProductStatus.PUBLISHED);
+    }
+
+    @Test
+    @DisplayName("SHOULD publish the product again WHEN an unpublished product has a variant")
+    void shouldPublishAgainWhenUnpublishedProductHasVariant() {
+        // GIVEN
+        Product product = restoredWith(ProductStatus.UNPUBLISHED, Variant.create("42", "Rouge", PRICE));
+
+        // WHEN
+        Product published = product.publish();
+
+        // THEN
+        assertThat(published.getStatus()).isEqualTo(ProductStatus.PUBLISHED);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ProductStatus.class, names = {"DRAFT", "UNPUBLISHED"})
+    @DisplayName("SHOULD refuse with PRODUCT_WITHOUT_VARIANT WHEN the product to publish has no variant")
+    void shouldRefuseWhenProductToPublishHasNoVariant(final ProductStatus status) {
+        // GIVEN
+        Product product = restoredWith(status);
+
+        // WHEN
+        Throwable error = catchThrowable(product::publish);
+
+        // THEN
+        assertThat(error).isInstanceOf(ProductWithoutVariantException.class);
+        assertThat(((ProductWithoutVariantException) error).getKind()).isEqualTo(ErrorKind.CONFLICT);
+        assertThat(((ProductWithoutVariantException) error).getCode()).isEqualTo("PRODUCT_WITHOUT_VARIANT");
+    }
+
+    @Test
+    @DisplayName("SHOULD return the same product WHEN it is already published")
+    void shouldReturnSameProductWhenAlreadyPublished() {
+        // GIVEN
+        Product product = restoredWith(ProductStatus.PUBLISHED, Variant.create("42", "Rouge", PRICE));
+
+        // WHEN
+        Product published = product.publish();
+
+        // THEN
+        assertThat(published).isSameAs(product);
+    }
+
+    @Test
+    @DisplayName("SHOULD unpublish the product WHEN it is published")
+    void shouldUnpublishWhenPublished() {
+        // GIVEN
+        Product product = restoredWith(ProductStatus.PUBLISHED, Variant.create("42", "Rouge", PRICE));
+
+        // WHEN
+        Product unpublished = product.unpublish();
+
+        // THEN
+        assertThat(unpublished.getStatus()).isEqualTo(ProductStatus.UNPUBLISHED);
+    }
+
+    @Test
+    @DisplayName("SHOULD refuse with PRODUCT_NOT_PUBLISHED WHEN unpublishing a draft")
+    void shouldRefuseWhenUnpublishingDraft() {
+        // GIVEN
+        Product product = restoredWith(ProductStatus.DRAFT, Variant.create("42", "Rouge", PRICE));
+
+        // WHEN
+        Throwable error = catchThrowable(product::unpublish);
+
+        // THEN
+        assertThat(error).isInstanceOf(ProductNotPublishedException.class);
+        assertThat(((ProductNotPublishedException) error).getKind()).isEqualTo(ErrorKind.CONFLICT);
+        assertThat(((ProductNotPublishedException) error).getCode()).isEqualTo("PRODUCT_NOT_PUBLISHED");
+    }
+
+    @Test
+    @DisplayName("SHOULD return the same product WHEN it is already unpublished")
+    void shouldReturnSameProductWhenAlreadyUnpublished() {
+        // GIVEN
+        Product product = restoredWith(ProductStatus.UNPUBLISHED, Variant.create("42", "Rouge", PRICE));
+
+        // WHEN
+        Product unpublished = product.unpublish();
+
+        // THEN
+        assertThat(unpublished).isSameAs(product);
+    }
+
+    @Test
+    @DisplayName("SHOULD keep everything else WHEN the product is published then unpublished")
+    void shouldKeepEverythingElseWhenStatusChanges() {
+        // GIVEN
+        Variant variant = Variant.restore(Sku.newSku(), "42", "Rouge", PRICE);
+        Product product = restoredWith(ProductStatus.DRAFT, variant);
+
+        // WHEN
+        Product changed = product.publish().unpublish();
+
+        // THEN
+        assertThat(changed.getId()).isEqualTo(product.getId());
+        assertThat(changed.getSellerId()).isEqualTo(KARIM);
+        assertThat(changed.getName()).isEqualTo("Air Max 90");
+        assertThat(changed.getBrand()).isEqualTo("Nike");
+        assertThat(changed.getCategory()).isEqualTo("sneakers");
+        assertThat(changed.getCreatedAt()).isEqualTo(NOW);
+        assertThat(changed.getVariants()).containsExactly(variant);
+        assertThat(changed.getVersion()).isZero();
+    }
+
+    @Test
+    @DisplayName("SHOULD leave the original untouched WHEN the product is published")
+    void shouldLeaveOriginalUntouchedWhenProductIsPublished() {
+        // GIVEN
+        Product product = restoredWith(ProductStatus.DRAFT, Variant.create("42", "Rouge", PRICE));
+
+        // WHEN
+        product.publish();
+
+        // THEN
+        assertThat(product.getStatus()).isEqualTo(ProductStatus.DRAFT);
+    }
+
+    @Test
+    @DisplayName("SHOULD leave the original untouched WHEN the product is unpublished")
+    void shouldLeaveOriginalUntouchedWhenProductIsUnpublished() {
+        // GIVEN
+        Product product = restoredWith(ProductStatus.PUBLISHED, Variant.create("42", "Rouge", PRICE));
+
+        // WHEN
+        product.unpublish();
+
+        // THEN
+        assertThat(product.getStatus()).isEqualTo(ProductStatus.PUBLISHED);
+    }
+
     private static Product airMax() {
         return draftNamed("Air Max 90");
     }
 
     private static Product restoredWith(final Variant... variants) {
-        return Product.restore(ProductId.newId(), KARIM, "Air Max 90", "Nike", "sneakers", null, ProductStatus.DRAFT,
-                NOW, List.of(variants), 0L);
+        return restoredWith(ProductStatus.DRAFT, variants);
+    }
+
+    private static Product restoredWith(final ProductStatus status, final Variant... variants) {
+        return Product.restore(ProductId.newId(), KARIM, "Air Max 90", "Nike", "sneakers", null, status, NOW,
+                List.of(variants), 0L);
     }
 
     private static Product draftNamed(final String name) {
