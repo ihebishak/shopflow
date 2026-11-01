@@ -7,6 +7,7 @@ import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductStatus;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Sku;
+import com.shopflow.catalog.domain.UnpublishReason;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.kernel.money.Money;
 import org.junit.jupiter.api.DisplayName;
@@ -94,6 +95,11 @@ class CreateProductServiceTest {
         @Override
         public void publishProductPublished(final Product product) {
             throw new UnsupportedOperationException("creating a product publishes nothing");
+        }
+
+        @Override
+        public void publishProductUnpublished(final Product product, final UnpublishReason reason) {
+            throw new UnsupportedOperationException("creating a product unpublishes nothing");
         }
     }
 }

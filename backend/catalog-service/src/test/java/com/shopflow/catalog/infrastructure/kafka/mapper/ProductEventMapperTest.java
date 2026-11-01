@@ -4,10 +4,12 @@ import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Sku;
+import com.shopflow.catalog.domain.UnpublishReason;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.contracts.product.ProductCreated;
 import com.shopflow.contracts.product.ProductPriceChanged;
 import com.shopflow.contracts.product.ProductPublished;
+import com.shopflow.contracts.product.ProductUnpublished;
 import com.shopflow.contracts.product.ProductUpdated;
 import com.shopflow.contracts.product.ProductVariantAdded;
 import com.shopflow.kernel.money.Money;
@@ -111,5 +113,21 @@ class ProductEventMapperTest {
         // THEN
         assertThat(event.getProductId()).isEqualTo(airMax.getId().toString());
         assertThat(event.getSellerId()).isEqualTo("seller-karim");
+    }
+
+    @Test
+    @DisplayName("SHOULD copy the product id, the seller and the reason WHEN mapping to ProductUnpublished")
+    void shouldCopyEveryFieldWhenMappingToProductUnpublished() {
+        // GIVEN
+        Product airMax = Product.draft(new SellerId("seller-karim"), "Air Max 90 Infrared", "Nike", "sneakers", null,
+                Instant.now());
+
+        // WHEN
+        ProductUnpublished event = productEventMapper.toProductUnpublished(airMax, UnpublishReason.SELLER);
+
+        // THEN
+        assertThat(event.getProductId()).isEqualTo(airMax.getId().toString());
+        assertThat(event.getSellerId()).isEqualTo("seller-karim");
+        assertThat(event.getReason()).isEqualTo(com.shopflow.contracts.product.UnpublishReason.SELLER);
     }
 }

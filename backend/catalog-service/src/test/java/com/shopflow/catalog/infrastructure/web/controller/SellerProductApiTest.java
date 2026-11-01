@@ -461,6 +461,98 @@ class SellerProductApiTest {
         assertThat(readProduct(product).getStatus()).isEqualTo("DRAFT");
     }
 
+    @Test
+    @DisplayName("SHOULD keep the product unpublished with its variants WHEN reading it back after the unpublication")
+    void shouldKeepProductUnpublishedWhenReadingItBack() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        VariantResponseDto variant = addVariant(product, "seller-karim", "42", VariantResponseDto.class).getBody();
+        publish(product, "seller-karim", ProductResponseDto.class);
+
+        // WHEN
+        ResponseEntity<ProductResponseDto> unpublished = unpublish(product, "seller-karim", ProductResponseDto.class);
+
+        // THEN
+        assertThat(unpublished.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(unpublished.getBody().getStatus()).isEqualTo("UNPUBLISHED");
+        assertThat(readProduct(product)).isEqualTo(unpublished.getBody());
+        assertThat(readVariants(product)).containsExactly(variant);
+    }
+
+    @Test
+    @DisplayName("SHOULD return the product as it was WHEN it is already unpublished")
+    void shouldReturnSameProductWhenAlreadyUnpublished() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        addVariant(product, "seller-karim", "42", VariantResponseDto.class);
+        publish(product, "seller-karim", ProductResponseDto.class);
+        ProductResponseDto unpublished = unpublish(product, "seller-karim", ProductResponseDto.class).getBody();
+
+        // WHEN
+        ResponseEntity<ProductResponseDto> again = unpublish(product, "seller-karim", ProductResponseDto.class);
+
+        // THEN
+        assertThat(again.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(again.getBody()).isEqualTo(unpublished);
+    }
+
+    @Test
+    @DisplayName("SHOULD go from draft to published, unpublished and published again WHEN a seller follows the whole path")
+    void shouldFollowWholePathWhenSellerPublishesThenUnpublishesThenPublishesAgain() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        addVariant(product, "seller-karim", "42", VariantResponseDto.class);
+        assertThat(readProduct(product).getStatus()).isEqualTo("DRAFT");
+
+        // WHEN / THEN
+        publish(product, "seller-karim", ProductResponseDto.class);
+        assertThat(readProduct(product).getStatus()).isEqualTo("PUBLISHED");
+
+        unpublish(product, "seller-karim", ProductResponseDto.class);
+        assertThat(readProduct(product).getStatus()).isEqualTo("UNPUBLISHED");
+
+        publish(product, "seller-karim", ProductResponseDto.class);
+        assertThat(readProduct(product).getStatus()).isEqualTo("PUBLISHED");
+    }
+
+    @Test
+    @DisplayName("SHOULD return 409 PRODUCT_NOT_PUBLISHED and stay a draft WHEN a seller unpublishes a draft")
+    void shouldReturn409WhenUnpublishingDraft() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+
+        // WHEN
+        ResponseEntity<JsonNode> response = unpublish(product, "seller-karim", JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("PRODUCT_NOT_PUBLISHED");
+        assertThat(readProduct(product).getStatus()).isEqualTo("DRAFT");
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 PRODUCT_NOT_FOUND and stay published WHEN another seller unpublishes the product")
+    void shouldReturn404WhenAnotherSellerUnpublishesProduct() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        addVariant(product, "seller-karim", "42", VariantResponseDto.class);
+        publish(product, "seller-karim", ProductResponseDto.class);
+
+        // WHEN
+        ResponseEntity<JsonNode> response = unpublish(product, "seller-lea", JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("PRODUCT_NOT_FOUND");
+        assertThat(readProduct(product).getStatus()).isEqualTo("PUBLISHED");
+    }
+
+    private <T> ResponseEntity<T> unpublish(final URI product, final String sellerId, final Class<T> responseType) {
+        return restTemplate.exchange(product.getPath() + "/unpublish", HttpMethod.POST,
+                new HttpEntity<>(sellerHeader(sellerId)), responseType);
+    }
+
     private <T> ResponseEntity<T> publish(final URI product, final String sellerId, final Class<T> responseType) {
         return restTemplate.exchange(product.getPath() + "/publish", HttpMethod.POST,
                 new HttpEntity<>(sellerHeader(sellerId)), responseType);

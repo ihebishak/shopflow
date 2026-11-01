@@ -5,6 +5,7 @@ import com.shopflow.catalog.application.api.ChangeVariantPriceUseCase;
 import com.shopflow.catalog.application.api.CreateProductUseCase;
 import com.shopflow.catalog.application.api.GetSellerProductUseCase;
 import com.shopflow.catalog.application.api.PublishProductUseCase;
+import com.shopflow.catalog.application.api.UnpublishProductUseCase;
 import com.shopflow.catalog.application.api.UpdateProductUseCase;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
@@ -57,6 +58,7 @@ public class SellerProductController implements SellerProductControllerDocumenta
     private final AddVariantUseCase addVariantUseCase;
     private final ChangeVariantPriceUseCase changeVariantPriceUseCase;
     private final PublishProductUseCase publishProductUseCase;
+    private final UnpublishProductUseCase unpublishProductUseCase;
     private final ProductRestMapper productRestMapper;
 
     /** Crée un brouillon : 201 Created, avec l'adresse du produit dans l'en-tête {@code Location}. */
@@ -129,6 +131,17 @@ public class SellerProductController implements SellerProductControllerDocumenta
                                              @PathVariable final UUID productId) {
         Product product = publishProductUseCase.publishProduct(
                 productRestMapper.toPublishCommand(new SellerId(sellerId), new ProductId(productId)));
+        return productRestMapper.toResponseDto(product);
+    }
+
+    /** Retire le produit de la vente : 200 OK avec le produit, même s'il était déjà dépublié. */
+    @Override
+    @PostMapping(value = "/{productId}/unpublish", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.OK)
+    public ProductResponseDto unpublishProduct(@RequestHeader(SELLER_HEADER) final String sellerId,
+                                               @PathVariable final UUID productId) {
+        Product product = unpublishProductUseCase.unpublishProduct(
+                productRestMapper.toUnpublishCommand(new SellerId(sellerId), new ProductId(productId)));
         return productRestMapper.toResponseDto(product);
     }
 }

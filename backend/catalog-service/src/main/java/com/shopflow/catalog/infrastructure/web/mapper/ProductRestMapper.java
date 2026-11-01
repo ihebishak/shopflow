@@ -4,6 +4,7 @@ import com.shopflow.catalog.application.api.command.AddVariantCommand;
 import com.shopflow.catalog.application.api.command.ChangeVariantPriceCommand;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
 import com.shopflow.catalog.application.api.command.PublishProductCommand;
+import com.shopflow.catalog.application.api.command.UnpublishProductCommand;
 import com.shopflow.catalog.application.api.command.UpdateProductCommand;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
@@ -50,6 +51,10 @@ public interface ProductRestMapper {
     @Mapping(target = "sellerId", source = "sellerId")
     @Mapping(target = "productId", source = "productId")
     PublishProductCommand toPublishCommand(SellerId sellerId, ProductId productId);
+
+    @Mapping(target = "sellerId", source = "sellerId")
+    @Mapping(target = "productId", source = "productId")
+    UnpublishProductCommand toUnpublishCommand(SellerId sellerId, ProductId productId);
 
     ProductResponseDto toResponseDto(Product product);
 

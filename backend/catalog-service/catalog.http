@@ -250,3 +250,23 @@ Content-Type: application/json
 ### Publier un produit sans variante (409 PRODUCT_WITHOUT_VARIANT)
 POST http://localhost:8101/api/v1/seller/products/{{emptyProductId}}/publish
 X-Seller-Id: seller-karim
+
+### Dépublier le produit (200, statut UNPUBLISHED, ProductUnpublished sur Kafka avec le motif SELLER)
+POST http://localhost:8101/api/v1/seller/products/{{productId}}/unpublish
+X-Seller-Id: seller-karim
+
+### Dépublier une deuxième fois (200, rien n'est enregistré ni annoncé)
+POST http://localhost:8101/api/v1/seller/products/{{productId}}/unpublish
+X-Seller-Id: seller-karim
+
+### Un autre vendeur ne peut pas dépublier (404 PRODUCT_NOT_FOUND)
+POST http://localhost:8101/api/v1/seller/products/{{productId}}/unpublish
+X-Seller-Id: seller-lea
+
+### Dépublier un brouillon (409 PRODUCT_NOT_PUBLISHED)
+POST http://localhost:8101/api/v1/seller/products/{{emptyProductId}}/unpublish
+X-Seller-Id: seller-karim
+
+### Remettre le produit en vente (200, statut PUBLISHED)
+POST http://localhost:8101/api/v1/seller/products/{{productId}}/publish
+X-Seller-Id: seller-karim
