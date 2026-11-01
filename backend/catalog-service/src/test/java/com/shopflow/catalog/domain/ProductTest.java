@@ -25,6 +25,7 @@ class ProductTest {
     private static final SellerId KARIM = new SellerId("seller-karim");
     private static final Instant NOW = Instant.parse("2026-10-31T10:00:00Z");
     private static final Money PRICE = Money.euros(16_000);
+    private static final Money NEW_PRICE = Money.euros(12_900);
 
     @Test
     @DisplayName("SHOULD create a draft with a new id and trimmed fields WHEN the product is valid")
@@ -387,6 +388,118 @@ class ProductTest {
         assertThat(product.getBrand()).isEqualTo("Nike");
         assertThat(product.getCategory()).isEqualTo("sneakers");
         assertThat(product.getDescription()).contains("Réédition");
+    }
+
+    @Test
+    @DisplayName("SHOULD return the variant WHEN the product has this sku")
+    void shouldReturnVariantWhenProductHasThisSku() {
+        // GIVEN
+        Variant first = Variant.restore(Sku.newSku(), "42", "Rouge", PRICE);
+        Variant second = Variant.restore(Sku.newSku(), "43", "Rouge", PRICE);
+
+        // WHEN
+        Variant found = restoredWith(first, second).variant(second.getSku());
+
+        // THEN
+        assertThat(found).isSameAs(second);
+    }
+
+    @Test
+    @DisplayName("SHOULD refuse with VARIANT_NOT_FOUND WHEN the product has no variant with this sku")
+    void shouldRefuseWhenProductHasNoVariantWithThisSku() {
+        // GIVEN
+        Product product = restoredWith(Variant.restore(Sku.newSku(), "42", "Rouge", PRICE));
+
+        // WHEN
+        Throwable error = catchThrowable(() -> product.variant(Sku.newSku()));
+
+        // THEN
+        assertThat(error).isInstanceOf(VariantNotFoundException.class);
+        assertThat(((VariantNotFoundException) error).getKind()).isEqualTo(ErrorKind.NOT_FOUND);
+        assertThat(((VariantNotFoundException) error).getCode()).isEqualTo("VARIANT_NOT_FOUND");
+    }
+
+    @Test
+    @DisplayName("SHOULD change only the price of this variant, in the same place, WHEN its price changes")
+    void shouldChangeOnlyThisPriceWhenVariantPriceChanges() {
+        // GIVEN
+        Variant first = Variant.restore(Sku.newSku(), "42", "Rouge", PRICE);
+        Variant second = Variant.restore(Sku.newSku(), "43", "Rouge", PRICE);
+        Variant third = Variant.restore(Sku.newSku(), "44", "Rouge", PRICE);
+
+        // WHEN
+        Product changed = restoredWith(first, second, third).changeVariantPrice(second.getSku(), NEW_PRICE);
+
+        // THEN
+        assertThat(changed.getVariants()).extracting(Variant::getSku)
+                .containsExactly(first.getSku(), second.getSku(), third.getSku());
+        assertThat(changed.getVariants().get(0)).isSameAs(first);
+        assertThat(changed.getVariants().get(2)).isSameAs(third);
+        Variant changedVariant = changed.getVariants().get(1);
+        assertThat(changedVariant.getPrice()).isEqualTo(NEW_PRICE);
+        assertThat(changedVariant.getSize()).isEqualTo("43");
+        assertThat(changedVariant.getColor()).isEqualTo("Rouge");
+    }
+
+    @Test
+    @DisplayName("SHOULD keep everything else WHEN the price of a variant changes")
+    void shouldKeepEverythingElseWhenVariantPriceChanges() {
+        // GIVEN
+        Variant variant = Variant.restore(Sku.newSku(), "42", "Rouge", PRICE);
+        Product product = restoredWith(variant);
+
+        // WHEN
+        Product changed = product.changeVariantPrice(variant.getSku(), NEW_PRICE);
+
+        // THEN
+        assertThat(changed.getId()).isEqualTo(product.getId());
+        assertThat(changed.getSellerId()).isEqualTo(KARIM);
+        assertThat(changed.getName()).isEqualTo("Air Max 90");
+        assertThat(changed.getStatus()).isEqualTo(ProductStatus.DRAFT);
+        assertThat(changed.getCreatedAt()).isEqualTo(NOW);
+        assertThat(changed.getVersion()).isZero();
+    }
+
+    @Test
+    @DisplayName("SHOULD leave the original untouched WHEN the price of a variant changes")
+    void shouldLeaveOriginalUntouchedWhenVariantPriceChanges() {
+        // GIVEN
+        Variant variant = Variant.restore(Sku.newSku(), "42", "Rouge", PRICE);
+        Product product = restoredWith(variant);
+
+        // WHEN
+        product.changeVariantPrice(variant.getSku(), NEW_PRICE);
+
+        // THEN
+        assertThat(product.getVariants()).containsExactly(variant);
+        assertThat(variant.getPrice()).isEqualTo(PRICE);
+    }
+
+    @Test
+    @DisplayName("SHOULD return a list that cannot be modified WHEN the price of a variant changes")
+    void shouldReturnUnmodifiableListWhenVariantPriceChanges() {
+        // GIVEN
+        Variant variant = Variant.restore(Sku.newSku(), "42", "Rouge", PRICE);
+        Product changed = restoredWith(variant).changeVariantPrice(variant.getSku(), NEW_PRICE);
+
+        // WHEN
+        Throwable error = catchThrowable(() -> changed.getVariants().clear());
+
+        // THEN
+        assertThat(error).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @DisplayName("SHOULD refuse with VARIANT_NOT_FOUND WHEN changing the price of an unknown sku")
+    void shouldRefuseWhenChangingPriceOfUnknownSku() {
+        // GIVEN
+        Product product = restoredWith(Variant.restore(Sku.newSku(), "42", "Rouge", PRICE));
+
+        // WHEN
+        Throwable error = catchThrowable(() -> product.changeVariantPrice(Sku.newSku(), NEW_PRICE));
+
+        // THEN
+        assertThat(error).isInstanceOf(VariantNotFoundException.class);
     }
 
     private static Product airMax() {

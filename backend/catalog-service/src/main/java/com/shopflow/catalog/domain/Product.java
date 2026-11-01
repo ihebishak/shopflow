@@ -1,5 +1,6 @@
 package com.shopflow.catalog.domain;
 
+import com.shopflow.kernel.money.Money;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -108,6 +109,28 @@ public final class Product {
         List<Variant> newVariants = new ArrayList<>(variants);
         newVariants.add(variant);
         return toBuilder().variants(List.copyOf(newVariants)).build();
+    }
+
+    /**
+     * @return la variante du produit portant ce SKU
+     * @throws VariantNotFoundException si le produit n'a pas cette variante
+     */
+    public Variant variant(final Sku sku) {
+        return variants.stream().filter(variant -> variant.getSku().equals(sku)).findFirst()
+                .orElseThrow(() -> new VariantNotFoundException(id, sku));
+    }
+
+    /**
+     * Change le prix d'une variante, qui garde sa place parmi les autres.
+     *
+     * @return le produit avec ce prix
+     * @throws VariantNotFoundException si le produit n'a pas cette variante
+     */
+    public Product changeVariantPrice(final Sku sku, final Money newPrice) {
+        Variant changed = variant(sku).withPrice(newPrice);
+        List<Variant> newVariants = variants.stream()
+                .map(variant -> variant.getSku().equals(sku) ? changed : variant).toList();
+        return toBuilder().variants(newVariants).build();
     }
 
     /**
