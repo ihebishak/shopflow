@@ -1,14 +1,18 @@
 package com.shopflow.catalog.infrastructure.web.mapper;
 
+import com.shopflow.catalog.application.api.command.AddVariantCommand;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
+import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
+import com.shopflow.kernel.money.Money;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -24,6 +28,10 @@ public interface ProductRestMapper {
     @Mapping(target = "sellerId", source = "sellerId")
     CreateProductCommand toCommand(CreateProductRequestDto requestDto, SellerId sellerId);
 
+    @Mapping(target = "sellerId", source = "sellerId")
+    @Mapping(target = "productId", source = "productId")
+    AddVariantCommand toCommand(AddVariantRequestDto requestDto, SellerId sellerId, ProductId productId);
+
     ProductResponseDto toResponseDto(Product product);
 
     VariantResponseDto toResponseDto(Variant variant);
@@ -38,6 +46,10 @@ public interface ProductRestMapper {
 
     default String map(final Sku sku) {
         return sku.toString();
+    }
+
+    default Money map(final MoneyRequestDto price) {
+        return Money.of(price.getAmount(), price.getCurrency());
     }
 
     default String map(final Optional<String> value) {

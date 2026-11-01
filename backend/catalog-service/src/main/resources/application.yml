@@ -5,6 +5,10 @@ spring:
   data:
     mongodb:
       uri: mongodb://localhost:27017/catalog?directConnection=true
+  jackson:
+    deserialization:
+      # Sinon 160.50 serait tronqué en 160 sans erreur : un montant en centimes est un entier strict
+      accept-float-as-int: false
 
 server:
   port: 8101

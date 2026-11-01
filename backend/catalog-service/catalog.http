@@ -47,3 +47,69 @@ Content-Type: application/json
   "brand": "Nike",
   "category": "sneakers"
 }
+
+### Ajouter une variante (201, avec son SKU généré par le serveur). Le prix est en centimes : 16000 = 160,00 €
+POST http://localhost:8101/api/v1/seller/products/{{productId}}/variants
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "size": "42",
+  "color": "Rouge",
+  "price": { "amount": 16000, "currency": "EUR" }
+}
+
+### Même taille et même coloris (409 DUPLICATE_VARIANT)
+POST http://localhost:8101/api/v1/seller/products/{{productId}}/variants
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "size": "42",
+  "color": "rouge",
+  "price": { "amount": 16000, "currency": "EUR" }
+}
+
+### Un autre vendeur ne peut pas ajouter de variante (404 PRODUCT_NOT_FOUND)
+POST http://localhost:8101/api/v1/seller/products/{{productId}}/variants
+X-Seller-Id: seller-lea
+Content-Type: application/json
+
+{
+  "size": "43",
+  "color": "Rouge",
+  "price": { "amount": 16000, "currency": "EUR" }
+}
+
+### Prix à 0 (400 VALIDATION_FAILED, champ price.amount)
+POST http://localhost:8101/api/v1/seller/products/{{productId}}/variants
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "size": "43",
+  "color": "Rouge",
+  "price": { "amount": 0, "currency": "EUR" }
+}
+
+### Autre devise que l'euro (400 VALIDATION_FAILED, champ price.currency)
+POST http://localhost:8101/api/v1/seller/products/{{productId}}/variants
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "size": "43",
+  "color": "Rouge",
+  "price": { "amount": 16000, "currency": "USD" }
+}
+
+### Montant à virgule (400 MALFORMED_REQUEST)
+POST http://localhost:8101/api/v1/seller/products/{{productId}}/variants
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "size": "43",
+  "color": "Rouge",
+  "price": { "amount": 160.50, "currency": "EUR" }
+}
