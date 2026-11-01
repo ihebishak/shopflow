@@ -196,7 +196,7 @@ com.shopflow.<service>
 └── infrastructure         adaptateurs
     ├── web
     │   ├── controller     contrôleurs REST
-    │   ├── swagger        interfaces de documentation OpenAPI (…ControllerDocumentation)
+    │   ├── swagger        interfaces de documentation OpenAPI (…ControllerDocumentation ; …DtoDocumentation dans request/ et response/)
     │   ├── dto/request    corps reçus (…RequestDto)
     │   ├── dto/response   corps renvoyés (…ResponseDto)
     │   ├── mapper         mappers MapStruct DTO ↔ application
@@ -227,6 +227,7 @@ com.shopflow.<service>
 - **Bean Validation** sur les `RequestDto` (`@NotBlank`, `@Size`… avec un message, repris par Swagger) et `@Valid` dans le contrôleur.
 - Les **commandes** portent les mêmes annotations : `@Valid` sur le paramètre de l'interface du cas d'usage et `@Validated` sur son service les font vérifier à chaque appel, quelle que soit l'entrée. Un oubli fait échouer les tests ArchUnit.
 - Le contrôleur implémente une interface **`…ControllerDocumentation`** qui porte les annotations OpenAPI (`@Tag`, `@Operation`) : le contrôleur reste lisible.
+- De même, chaque DTO implémente une interface **`…DtoDocumentation`** (`swagger/request`, `swagger/response`) qui porte les `@Schema` de ses champs sur des getters. Le DTO garde ses champs, sa Bean Validation et le `@Schema` de sa classe : Swagger ne le lit pas sur une interface. Ces interfaces ne dépendent d'aucun DTO (un DTO imbriqué y est désigné par sa propre interface), sinon ArchUnit détecte un cycle.
 - `consumes` / `produces` explicites (`application/json`) ; `@ResponseStatus` pour le code de succès, `ResponseEntity` seulement quand il faut des en-têtes (ex. `Location`).
 
 **Mappers**

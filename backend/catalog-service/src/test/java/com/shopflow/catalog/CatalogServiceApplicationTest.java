@@ -1,5 +1,6 @@
 package com.shopflow.catalog;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.shopflow.starter.consumer.IdempotentListenerAdvice;
 import com.shopflow.starter.outbox.OutboxPublisher;
 import org.junit.jupiter.api.DisplayName;
@@ -79,5 +80,24 @@ class CatalogServiceApplicationTest {
                 .contains("X-Seller-Id");
         assertThat(http.getForEntity("/swagger-ui/index.html", String.class).getStatusCode().is2xxSuccessful())
                 .as("page Swagger UI").isTrue();
+    }
+
+    @Test
+    @DisplayName("SHOULD show the description, the example and the required fields of a DTO WHEN its interface documents them")
+    void shouldShowDtoDocumentationWhenItsInterfaceDocumentsIt() {
+        // WHEN
+        JsonNode schemas = http.getForObject("/v3/api-docs", JsonNode.class).at("/components/schemas");
+
+        // THEN
+        JsonNode request = schemas.get("UpdateProductRequestDto");
+        assertThat(request.get("description").isTextual()).as("description de la classe").isTrue();
+        assertThat(request.at("/properties/name/description").asText()).isEqualTo("Nom du produit.");
+        assertThat(request.at("/properties/name/example").asText()).isEqualTo("Air Max 90 Infrared");
+        assertThat(request.at("/properties/name/maxLength").asInt()).as("Bean Validation du DTO").isEqualTo(120);
+        assertThat(request.get("required")).extracting(JsonNode::asText)
+                .containsExactlyInAnyOrder("name", "brand", "category");
+        JsonNode response = schemas.get("VariantResponseDto");
+        assertThat(response.at("/properties/size/description").asText()).isEqualTo("Taille.");
+        assertThat(response.at("/properties/price/description").asText()).isEqualTo("Prix de la variante.");
     }
 }
