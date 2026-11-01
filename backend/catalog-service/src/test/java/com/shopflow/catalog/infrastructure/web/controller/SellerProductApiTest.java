@@ -1,8 +1,12 @@
 package com.shopflow.catalog.infrastructure.web.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.response.MoneyResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
+import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +25,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -121,6 +126,85 @@ class SellerProductApiTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().get("code").asText()).isEqualTo("VALIDATION_FAILED");
         assertThat(response.getBody().get("errors").get(0).get("field").asText()).isEqualTo("name");
+    }
+
+    @Test
+    @DisplayName("SHOULD return the variant and show it in the product WHEN a seller adds a variant")
+    void shouldShowVariantInProductWhenSellerAddsVariant() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+
+        // WHEN
+        ResponseEntity<VariantResponseDto> added = addVariant(product, "seller-karim", "42", VariantResponseDto.class);
+
+        // THEN
+        assertThat(added.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(added.getHeaders().getLocation()).isNull();
+        VariantResponseDto variant = added.getBody();
+        assertThat(variant).isNotNull();
+        assertThat(variant.getSku()).isNotBlank();
+        assertThat(variant.getSize()).isEqualTo("42");
+        assertThat(variant.getColor()).isEqualTo("Rouge");
+        assertThat(variant.getPrice()).isEqualTo(MoneyResponseDto.builder().amount(16000).currency("EUR").build());
+        assertThat(readVariants(product)).containsExactly(variant);
+    }
+
+    @Test
+    @DisplayName("SHOULD keep both variants WHEN a seller adds a second variant")
+    void shouldKeepBothVariantsWhenSellerAddsSecondVariant() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        VariantResponseDto first = addVariant(product, "seller-karim", "42", VariantResponseDto.class).getBody();
+
+        // WHEN
+        VariantResponseDto second = addVariant(product, "seller-karim", "43", VariantResponseDto.class).getBody();
+
+        // THEN
+        assertThat(readVariants(product)).containsExactly(first, second);
+    }
+
+    @Test
+    @DisplayName("SHOULD return 409 DUPLICATE_VARIANT and keep one variant WHEN the same variant is added twice")
+    void shouldReturn409WhenSameVariantIsAddedTwice() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        addVariant(product, "seller-karim", "42", VariantResponseDto.class);
+
+        // WHEN
+        ResponseEntity<JsonNode> response = addVariant(product, "seller-karim", "42", JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("DUPLICATE_VARIANT");
+        assertThat(readVariants(product)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 PRODUCT_NOT_FOUND and add nothing WHEN another seller adds a variant")
+    void shouldReturn404WhenAnotherSellerAddsVariant() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+
+        // WHEN
+        ResponseEntity<JsonNode> response = addVariant(product, "seller-lea", "42", JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("PRODUCT_NOT_FOUND");
+        assertThat(readVariants(product)).isEmpty();
+    }
+
+    private <T> ResponseEntity<T> addVariant(final URI product, final String sellerId, final String size,
+                                             final Class<T> responseType) {
+        AddVariantRequestDto requestDto = AddVariantRequestDto.builder().size(size).color("Rouge")
+                .price(MoneyRequestDto.builder().amount(16000L).currency("EUR").build()).build();
+        return restTemplate.exchange(product.getPath() + "/variants", HttpMethod.POST,
+                new HttpEntity<>(requestDto, sellerHeader(sellerId)), responseType);
+    }
+
+    private List<VariantResponseDto> readVariants(final URI product) {
+        return restTemplate.exchange(product.getPath(), HttpMethod.GET, new HttpEntity<>(sellerHeader("seller-karim")),
+                ProductResponseDto.class).getBody().getVariants();
     }
 
     private ResponseEntity<ProductResponseDto> createAirMax(final String sellerId) {

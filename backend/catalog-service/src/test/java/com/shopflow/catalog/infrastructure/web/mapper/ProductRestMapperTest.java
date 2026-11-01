@@ -1,10 +1,14 @@
 package com.shopflow.catalog.infrastructure.web.mapper;
 
+import com.shopflow.catalog.application.api.command.AddVariantCommand;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
 import com.shopflow.catalog.domain.Product;
+import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Variant;
+import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.MoneyResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
@@ -41,6 +45,26 @@ class ProductRestMapperTest {
         assertThat(command.getBrand()).isEqualTo("Nike");
         assertThat(command.getCategory()).isEqualTo("sneakers");
         assertThat(command.getDescription()).isEqualTo("Réédition 1990");
+    }
+
+    @Test
+    @DisplayName("SHOULD build the command with the seller, the product and the price WHEN mapping an add variant request")
+    void shouldBuildCommandWhenMappingAddVariantRequest() {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        AddVariantRequestDto requestDto = AddVariantRequestDto.builder()
+                .size("42").color("Rouge")
+                .price(MoneyRequestDto.builder().amount(16000L).currency("EUR").build()).build();
+
+        // WHEN
+        AddVariantCommand command = productRestMapper.toCommand(requestDto, KARIM, productId);
+
+        // THEN
+        assertThat(command.getSellerId()).isEqualTo(KARIM);
+        assertThat(command.getProductId()).isEqualTo(productId);
+        assertThat(command.getSize()).isEqualTo("42");
+        assertThat(command.getColor()).isEqualTo("Rouge");
+        assertThat(command.getPrice()).isEqualTo(Money.euros(16000));
     }
 
     @Test
