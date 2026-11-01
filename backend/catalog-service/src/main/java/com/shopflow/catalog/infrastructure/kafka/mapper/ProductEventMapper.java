@@ -3,7 +3,11 @@ package com.shopflow.catalog.infrastructure.kafka.mapper;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
+import com.shopflow.catalog.domain.Sku;
+import com.shopflow.catalog.domain.Variant;
 import com.shopflow.contracts.product.ProductCreated;
+import com.shopflow.contracts.product.ProductVariant;
+import com.shopflow.contracts.product.ProductVariantAdded;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -20,11 +24,21 @@ public interface ProductEventMapper {
     @Mapping(target = "variants", expression = "java(java.util.List.of())")
     ProductCreated toProductCreated(Product product);
 
+    @Mapping(target = "variantBuilder", ignore = true)
+    ProductVariantAdded toProductVariantAdded(ProductId productId, Variant variant);
+
+    @Mapping(target = "priceBuilder", ignore = true)
+    ProductVariant toProductVariant(Variant variant);
+
     default String map(final ProductId productId) {
         return productId.toString();
     }
 
     default String map(final SellerId sellerId) {
         return sellerId.getValue();
+    }
+
+    default String map(final Sku sku) {
+        return sku.toString();
     }
 }

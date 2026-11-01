@@ -1,8 +1,13 @@
 package com.shopflow.catalog.infrastructure.kafka.mapper;
 
 import com.shopflow.catalog.domain.Product;
+import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
+import com.shopflow.catalog.domain.Sku;
+import com.shopflow.catalog.domain.Variant;
 import com.shopflow.contracts.product.ProductCreated;
+import com.shopflow.contracts.product.ProductVariantAdded;
+import com.shopflow.kernel.money.Money;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -34,5 +39,24 @@ class ProductEventMapperTest {
         assertThat(event.getBrand()).isEqualTo("Nike");
         assertThat(event.getCategory()).isEqualTo("sneakers");
         assertThat(event.getVariants()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("SHOULD copy the product id and every variant field WHEN mapping to ProductVariantAdded")
+    void shouldCopyEveryFieldWhenMappingVariantToProductVariantAdded() {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        Variant variant = Variant.restore(Sku.newSku(), "42", "Rouge", Money.euros(16_000));
+
+        // WHEN
+        ProductVariantAdded event = productEventMapper.toProductVariantAdded(productId, variant);
+
+        // THEN
+        assertThat(event.getProductId()).isEqualTo(productId.toString());
+        assertThat(event.getVariant().getSku()).isEqualTo(variant.getSku().toString());
+        assertThat(event.getVariant().getSize()).isEqualTo("42");
+        assertThat(event.getVariant().getColor()).isEqualTo("Rouge");
+        assertThat(event.getVariant().getPrice().getAmount()).isEqualTo(16_000);
+        assertThat(event.getVariant().getPrice().getCurrency()).isEqualTo("EUR");
     }
 }

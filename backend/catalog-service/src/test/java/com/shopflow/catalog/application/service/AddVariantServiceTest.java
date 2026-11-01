@@ -1,16 +1,19 @@
 package com.shopflow.catalog.application.service;
 
 import com.shopflow.catalog.application.api.command.AddVariantCommand;
+import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.application.spi.ProductRepository;
 import com.shopflow.catalog.domain.DuplicateVariantException;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
+import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
 import com.shopflow.catalog.domain.ProductNotFoundException;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.kernel.money.Money;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -18,9 +21,12 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -33,8 +39,9 @@ class AddVariantServiceTest {
     private static final Money PRICE = Money.euros(16_000);
 
     private final ProductRepository productRepository = mock(ProductRepository.class);
-    private final AddVariantService addVariantService =
-            new AddVariantService(new GetSellerProductService(productRepository), productRepository);
+    private final ProductEventPublisher productEventPublisher = mock(ProductEventPublisher.class);
+    private final AddVariantService addVariantService = new AddVariantService(
+            new GetSellerProductService(productRepository), productRepository, productEventPublisher);
 
     @Test
     @DisplayName("SHOULD add the variant and save the product WHEN the product belongs to the seller")
@@ -50,7 +57,9 @@ class AddVariantServiceTest {
         assertThat(variant.getColor()).isEqualTo("Rouge");
         assertThat(variant.getPrice()).isEqualTo(PRICE);
         assertThat(airMax.getVariants()).containsExactly(variant);
-        verify(productRepository).save(airMax);
+        InOrder saveThenPublish = inOrder(productRepository, productEventPublisher);
+        saveThenPublish.verify(productRepository).save(airMax);
+        saveThenPublish.verify(productEventPublisher).publishProductVariantAdded(airMax.getId(), variant);
     }
 
     @Test
@@ -66,6 +75,7 @@ class AddVariantServiceTest {
         assertThat(error).isInstanceOf(ProductNotFoundException.class);
         assertThat(airMax.getVariants()).isEmpty();
         verify(productRepository, never()).save(any());
+        verifyNoInteractions(productEventPublisher);
     }
 
     @Test
@@ -81,6 +91,7 @@ class AddVariantServiceTest {
         // THEN
         assertThat(error).isInstanceOf(ProductNotFoundException.class);
         verify(productRepository, never()).save(any());
+        verifyNoInteractions(productEventPublisher);
     }
 
     @Test
@@ -96,6 +107,22 @@ class AddVariantServiceTest {
         // THEN
         assertThat(error).isInstanceOf(DuplicateVariantException.class);
         verify(productRepository, never()).save(any());
+        verifyNoInteractions(productEventPublisher);
+    }
+
+    @Test
+    @DisplayName("SHOULD publish nothing WHEN the product changed before it could be saved")
+    void shouldPublishNothingWhenProductChangedBeforeBeingSaved() {
+        // GIVEN
+        Product airMax = existingProductOf(KARIM);
+        doThrow(new ProductModifiedConcurrentlyException(airMax.getId())).when(productRepository).save(airMax);
+
+        // WHEN
+        Throwable error = catchThrowable(() -> addVariantService.addVariant(commandOf(KARIM, airMax.getId(), "42")));
+
+        // THEN
+        assertThat(error).isInstanceOf(ProductModifiedConcurrentlyException.class);
+        verifyNoInteractions(productEventPublisher);
     }
 
     private Product existingProductOf(final SellerId sellerId) {

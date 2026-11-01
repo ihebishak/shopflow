@@ -2,6 +2,7 @@ package com.shopflow.catalog.application.service;
 
 import com.shopflow.catalog.application.api.AddVariantUseCase;
 import com.shopflow.catalog.application.api.command.AddVariantCommand;
+import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.application.spi.ProductRepository;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
@@ -43,6 +44,9 @@ class AddVariantValidationTest {
     @MockitoBean
     private ProductRepository productRepository;
 
+    @MockitoBean
+    private ProductEventPublisher productEventPublisher;
+
     @Test
     @DisplayName("SHOULD read and save nothing WHEN the command is invalid")
     void shouldReadAndSaveNothingWhenCommandIsInvalid() {
@@ -57,7 +61,7 @@ class AddVariantValidationTest {
         assertThat(((ConstraintViolationException) error).getConstraintViolations())
                 .extracting(ConstraintViolation::getMessage)
                 .containsExactly("price must be a positive amount in euros");
-        verifyNoInteractions(productRepository);
+        verifyNoInteractions(productRepository, productEventPublisher);
     }
 
     @Test

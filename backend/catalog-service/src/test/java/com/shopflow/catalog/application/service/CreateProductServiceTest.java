@@ -3,8 +3,10 @@ package com.shopflow.catalog.application.service;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
 import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.domain.Product;
+import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductStatus;
 import com.shopflow.catalog.domain.SellerId;
+import com.shopflow.catalog.domain.Variant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -69,6 +71,11 @@ class CreateProductServiceTest {
         @Override
         public void publishProductCreated(final Product product) {
             announced.add(product);
+        }
+
+        @Override
+        public void publishProductVariantAdded(final ProductId productId, final Variant variant) {
+            throw new UnsupportedOperationException("creating a product adds no variant");
         }
     }
 }
