@@ -1,14 +1,17 @@
 package com.shopflow.catalog.infrastructure.web.controller;
 
 import com.shopflow.catalog.application.api.AddVariantUseCase;
+import com.shopflow.catalog.application.api.ChangeVariantPriceUseCase;
 import com.shopflow.catalog.application.api.CreateProductUseCase;
 import com.shopflow.catalog.application.api.GetSellerProductUseCase;
 import com.shopflow.catalog.application.api.UpdateProductUseCase;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
+import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.ChangeVariantPriceRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
@@ -51,6 +54,7 @@ public class SellerProductController implements SellerProductControllerDocumenta
     private final GetSellerProductUseCase getSellerProductUseCase;
     private final UpdateProductUseCase updateProductUseCase;
     private final AddVariantUseCase addVariantUseCase;
+    private final ChangeVariantPriceUseCase changeVariantPriceUseCase;
     private final ProductRestMapper productRestMapper;
 
     /** Crée un brouillon : 201 Created, avec l'adresse du produit dans l'en-tête {@code Location}. */
@@ -98,6 +102,20 @@ public class SellerProductController implements SellerProductControllerDocumenta
                                          @Valid @RequestBody final AddVariantRequestDto requestDto) {
         Variant variant = addVariantUseCase.addVariant(
                 productRestMapper.toCommand(requestDto, new SellerId(sellerId), new ProductId(productId)));
+        return productRestMapper.toResponseDto(variant);
+    }
+
+    /** Change le prix d'une variante : 200 OK avec la variante, même si son prix n'a pas changé. */
+    @Override
+    @PutMapping(value = "/{productId}/variants/{sku}/price", consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.OK)
+    public VariantResponseDto changeVariantPrice(@RequestHeader(SELLER_HEADER) final String sellerId,
+                                                 @PathVariable final UUID productId,
+                                                 @PathVariable final UUID sku,
+                                                 @Valid @RequestBody final ChangeVariantPriceRequestDto requestDto) {
+        Variant variant = changeVariantPriceUseCase.changeVariantPrice(productRestMapper.toCommand(requestDto,
+                new SellerId(sellerId), new ProductId(productId), new Sku(sku)));
         return productRestMapper.toResponseDto(variant);
     }
 }

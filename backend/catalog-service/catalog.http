@@ -59,6 +59,10 @@ Content-Type: application/json
   "price": { "amount": 16000, "currency": "EUR" }
 }
 
+> {%
+    client.global.set("sku", response.body.sku);
+%}
+
 ### Même taille et même coloris (409 DUPLICATE_VARIANT)
 POST http://localhost:8101/api/v1/seller/products/{{productId}}/variants
 X-Seller-Id: seller-karim
@@ -169,4 +173,49 @@ Content-Type: application/json
   "name": " ",
   "brand": "Nike",
   "category": "sneakers"
+}
+
+### Changer le prix de la variante (200) : 12900 = 129,00 €
+PUT http://localhost:8101/api/v1/seller/products/{{productId}}/variants/{{sku}}/price
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "price": { "amount": 12900, "currency": "EUR" }
+}
+
+### Le même prix (200, rien n'est enregistré ni annoncé)
+PUT http://localhost:8101/api/v1/seller/products/{{productId}}/variants/{{sku}}/price
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "price": { "amount": 12900, "currency": "EUR" }
+}
+
+### Un autre vendeur ne peut pas changer le prix (404 PRODUCT_NOT_FOUND)
+PUT http://localhost:8101/api/v1/seller/products/{{productId}}/variants/{{sku}}/price
+X-Seller-Id: seller-lea
+Content-Type: application/json
+
+{
+  "price": { "amount": 1, "currency": "EUR" }
+}
+
+### SKU inconnu sur ce produit (404 VARIANT_NOT_FOUND)
+PUT http://localhost:8101/api/v1/seller/products/{{productId}}/variants/01a19c2f-3c1d-7e20-8b4a-9d6e2f1a3b5c/price
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "price": { "amount": 12900, "currency": "EUR" }
+}
+
+### Prix à 0 (400 VALIDATION_FAILED, champ price.amount)
+PUT http://localhost:8101/api/v1/seller/products/{{productId}}/variants/{{sku}}/price
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "price": { "amount": 0, "currency": "EUR" }
 }

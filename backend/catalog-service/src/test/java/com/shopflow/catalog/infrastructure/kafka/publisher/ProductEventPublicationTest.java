@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.shopflow.catalog.infrastructure.mongo.document.ProductDocument;
 import com.shopflow.catalog.infrastructure.web.controller.SellerProductController;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.ChangeVariantPriceRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import com.shopflow.contracts.product.ProductCreated;
+import com.shopflow.contracts.product.ProductPriceChanged;
 import com.shopflow.contracts.product.ProductUpdated;
 import com.shopflow.contracts.product.ProductVariant;
 import com.shopflow.contracts.product.ProductVariantAdded;
@@ -232,6 +234,74 @@ class ProductEventPublicationTest {
                 new HttpEntity<>(headers("corr-read")), ProductResponseDto.class).getBody();
         assertThat(product.getName()).as("la modification est annulée avec l'événement")
                 .isEqualTo("Air Max 90 Infrared");
+    }
+
+    @Test
+    @DisplayName("SHOULD publish ProductPriceChanged on Kafka with both prices WHEN a seller changes a price")
+    void shouldPublishProductPriceChangedWhenSellerChangesPrice() {
+        // GIVEN
+        String productId = createdProductId();
+        String sku = addedVariantSku(productId);
+        String correlationId = "corr-" + UUID.randomUUID();
+
+        // WHEN
+        ResponseEntity<VariantResponseDto> response = restTemplate.exchange(priceOf(productId, sku), HttpMethod.PUT,
+                new HttpEntity<>(priced129Euros(), headers(correlationId)), VariantResponseDto.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        ConsumerRecord<String, SpecificRecord> record = awaitEvent(productId, ProductPriceChanged.class);
+
+        ProductPriceChanged event = (ProductPriceChanged) record.value();
+        assertThat(event.getProductId()).isEqualTo(productId);
+        assertThat(event.getSku()).isEqualTo(sku);
+        assertThat(event.getOldPrice().getAmount()).isEqualTo(16_000);
+        assertThat(event.getOldPrice().getCurrency()).isEqualTo("EUR");
+        assertThat(event.getNewPrice().getAmount()).isEqualTo(12_900);
+        assertThat(event.getNewPrice().getCurrency()).isEqualTo("EUR");
+
+        EventMetadata metadata = EventMetadata.fromHeaders(record.headers()).orElseThrow();
+        assertThat(metadata.getType()).isEqualTo("shopflow.product.ProductPriceChanged.v1");
+        assertThat(metadata.getSource()).isEqualTo("/catalog-service");
+        assertThat(metadata.getSubject()).isEqualTo(productId);
+        assertThat(metadata.getCorrelationId()).as("même parcours que la requête HTTP").isEqualTo(correlationId);
+    }
+
+    @Test
+    @DisplayName("SHOULD keep the old price WHEN the event cannot be written to the outbox")
+    void shouldKeepOldPriceWhenEventCannotBeWritten() {
+        // GIVEN
+        String productId = createdProductId();
+        String sku = addedVariantSku(productId);
+        doThrow(new IllegalStateException("outbox unavailable"))
+                .when(outboxPublisher).publish(anyString(), anyString(), any(SpecificRecord.class));
+
+        // WHEN
+        ResponseEntity<JsonNode> response = restTemplate.exchange(priceOf(productId, sku), HttpMethod.PUT,
+                new HttpEntity<>(priced129Euros(), headers("corr-rollback")), JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("INTERNAL_ERROR");
+        ProductResponseDto product = restTemplate.exchange(PRODUCTS + "/" + productId, HttpMethod.GET,
+                new HttpEntity<>(headers("corr-read")), ProductResponseDto.class).getBody();
+        assertThat(product.getVariants().get(0).getPrice().getAmount())
+                .as("le prix est annulé avec l'événement").isEqualTo(16_000);
+    }
+
+    private String addedVariantSku(final String productId) {
+        return restTemplate.exchange(variantsOf(productId), HttpMethod.POST,
+                new HttpEntity<>(variant42Rouge(), headers("corr-variant")), VariantResponseDto.class)
+                .getBody().getSku();
+    }
+
+    private static String priceOf(final String productId, final String sku) {
+        return variantsOf(productId) + "/" + sku + "/price";
+    }
+
+    private static ChangeVariantPriceRequestDto priced129Euros() {
+        return ChangeVariantPriceRequestDto.builder()
+                .price(MoneyRequestDto.builder().amount(12_900L).currency("EUR").build()).build();
     }
 
     private String createdProductId() {

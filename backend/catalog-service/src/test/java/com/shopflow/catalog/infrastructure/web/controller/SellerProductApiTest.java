@@ -2,6 +2,7 @@ package com.shopflow.catalog.infrastructure.web.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.ChangeVariantPriceRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
@@ -283,6 +284,106 @@ class SellerProductApiTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody().get("code").asText()).isEqualTo("PRODUCT_NOT_FOUND");
         assertThat(readProduct(product)).isEqualTo(created.getBody());
+    }
+
+    @Test
+    @DisplayName("SHOULD return and keep the new price WHEN a seller changes the price of a variant")
+    void shouldKeepNewPriceWhenSellerChangesPrice() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        VariantResponseDto variant = addVariant(product, "seller-karim", "42", VariantResponseDto.class).getBody();
+
+        // WHEN
+        ResponseEntity<VariantResponseDto> changed = changePrice(product, "seller-karim", variant.getSku(), 12_900L,
+                VariantResponseDto.class);
+
+        // THEN
+        assertThat(changed.getStatusCode()).isEqualTo(HttpStatus.OK);
+        VariantResponseDto body = changed.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.getSku()).isEqualTo(variant.getSku());
+        assertThat(body.getSize()).isEqualTo("42");
+        assertThat(body.getColor()).isEqualTo("Rouge");
+        assertThat(body.getPrice()).isEqualTo(MoneyResponseDto.builder().amount(12_900).currency("EUR").build());
+        assertThat(readVariants(product)).containsExactly(body);
+    }
+
+    @Test
+    @DisplayName("SHOULD keep the other variant and its price WHEN a seller changes the price of a variant")
+    void shouldKeepOtherVariantWhenSellerChangesPrice() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        VariantResponseDto first = addVariant(product, "seller-karim", "42", VariantResponseDto.class).getBody();
+        VariantResponseDto second = addVariant(product, "seller-karim", "43", VariantResponseDto.class).getBody();
+
+        // WHEN
+        VariantResponseDto changed = changePrice(product, "seller-karim", first.getSku(), 12_900L,
+                VariantResponseDto.class).getBody();
+
+        // THEN
+        assertThat(readVariants(product)).containsExactly(changed, second);
+    }
+
+    @Test
+    @DisplayName("SHOULD return the variant as it was WHEN a seller sends the same price")
+    void shouldReturnSameVariantWhenSellerSendsSamePrice() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        VariantResponseDto variant = addVariant(product, "seller-karim", "42", VariantResponseDto.class).getBody();
+
+        // WHEN
+        ResponseEntity<VariantResponseDto> changed = changePrice(product, "seller-karim", variant.getSku(), 16_000L,
+                VariantResponseDto.class);
+
+        // THEN
+        assertThat(changed.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(changed.getBody()).isEqualTo(variant);
+        assertThat(readVariants(product)).containsExactly(variant);
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 PRODUCT_NOT_FOUND and change nothing WHEN another seller changes the price")
+    void shouldReturn404WhenAnotherSellerChangesPrice() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+        VariantResponseDto variant = addVariant(product, "seller-karim", "42", VariantResponseDto.class).getBody();
+
+        // WHEN
+        ResponseEntity<JsonNode> response = changePrice(product, "seller-lea", variant.getSku(), 1L, JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("PRODUCT_NOT_FOUND");
+        assertThat(readVariants(product)).containsExactly(variant);
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 VARIANT_NOT_FOUND and change nothing WHEN the sku belongs to another product")
+    void shouldReturn404WhenSkuBelongsToAnotherProduct() {
+        // GIVEN
+        URI airMax = createAirMax("seller-karim").getHeaders().getLocation();
+        URI otherProduct = createAirMax("seller-karim").getHeaders().getLocation();
+        VariantResponseDto variant = addVariant(airMax, "seller-karim", "42", VariantResponseDto.class).getBody();
+        VariantResponseDto other = addVariant(otherProduct, "seller-karim", "42", VariantResponseDto.class).getBody();
+
+        // WHEN
+        ResponseEntity<JsonNode> response = changePrice(otherProduct, "seller-karim", variant.getSku(), 12_900L,
+                JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("VARIANT_NOT_FOUND");
+        assertThat(readVariants(airMax)).containsExactly(variant);
+        assertThat(readVariants(otherProduct)).containsExactly(other);
+    }
+
+    private <T> ResponseEntity<T> changePrice(final URI product, final String sellerId, final String sku,
+                                              final long amount, final Class<T> responseType) {
+        ChangeVariantPriceRequestDto requestDto = ChangeVariantPriceRequestDto.builder()
+                .price(MoneyRequestDto.builder().amount(amount).currency("EUR").build()).build();
+        return restTemplate.exchange(product.getPath() + "/variants/" + sku + "/price", HttpMethod.PUT,
+                new HttpEntity<>(requestDto, sellerHeader(sellerId)), responseType);
     }
 
     private <T> ResponseEntity<T> updateProduct(final URI product, final String sellerId, final Class<T> responseType,

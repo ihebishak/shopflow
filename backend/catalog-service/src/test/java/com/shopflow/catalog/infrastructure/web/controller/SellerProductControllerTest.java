@@ -2,10 +2,12 @@ package com.shopflow.catalog.infrastructure.web.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shopflow.catalog.application.api.AddVariantUseCase;
+import com.shopflow.catalog.application.api.ChangeVariantPriceUseCase;
 import com.shopflow.catalog.application.api.CreateProductUseCase;
 import com.shopflow.catalog.application.api.GetSellerProductUseCase;
 import com.shopflow.catalog.application.api.UpdateProductUseCase;
 import com.shopflow.catalog.application.api.command.AddVariantCommand;
+import com.shopflow.catalog.application.api.command.ChangeVariantPriceCommand;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
 import com.shopflow.catalog.application.api.command.UpdateProductCommand;
 import com.shopflow.catalog.domain.DuplicateVariantException;
@@ -16,7 +18,9 @@ import com.shopflow.catalog.domain.ProductNotFoundException;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
+import com.shopflow.catalog.domain.VariantNotFoundException;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.request.ChangeVariantPriceRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.mapper.ProductRestMapperImpl;
@@ -26,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -83,6 +88,9 @@ class SellerProductControllerTest {
 
     @MockitoBean
     private UpdateProductUseCase updateProductUseCase;
+
+    @MockitoBean
+    private ChangeVariantPriceUseCase changeVariantPriceUseCase;
 
     @Test
     @DisplayName("SHOULD return 201 with the location and the product WHEN the product is valid")
@@ -479,6 +487,172 @@ class SellerProductControllerTest {
         putProduct(productId, airMaxUpdate().build())
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PRODUCT_MODIFIED_CONCURRENTLY"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 200 with the variant and pass the price to the use case WHEN the new price is valid")
+    void shouldReturn200WhenNewPriceIsValid() throws Exception {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        Sku sku = Sku.newSku();
+        when(changeVariantPriceUseCase.changeVariantPrice(any(ChangeVariantPriceCommand.class)))
+                .thenReturn(Variant.restore(sku, "42", "Rouge", Money.euros(12900)));
+
+        // WHEN / THEN
+        putPrice(productId, sku, priced(12900L, "EUR"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sku").value(sku.toString()))
+                .andExpect(jsonPath("$.size").value("42"))
+                .andExpect(jsonPath("$.color").value("Rouge"))
+                .andExpect(jsonPath("$.price.amount").value(12900))
+                .andExpect(jsonPath("$.price.currency").value("EUR"));
+        ArgumentCaptor<ChangeVariantPriceCommand> command = ArgumentCaptor.forClass(ChangeVariantPriceCommand.class);
+        verify(changeVariantPriceUseCase).changeVariantPrice(command.capture());
+        assertThat(command.getValue().getSellerId()).isEqualTo(KARIM);
+        assertThat(command.getValue().getProductId()).isEqualTo(productId);
+        assertThat(command.getValue().getSku()).isEqualTo(sku);
+        assertThat(command.getValue().getPrice()).isEqualTo(Money.euros(12900));
+    }
+
+    @ParameterizedTest
+    @DisplayName("SHOULD return 400 VALIDATION_FAILED naming the field, without calling the use case, WHEN the new price is invalid")
+    @MethodSource("invalidPrices")
+    void shouldReturn400WithFieldWhenNewPriceIsInvalid(final ChangeVariantPriceRequestDto requestDto, final String field,
+                                                       final String code) throws Exception {
+        // WHEN / THEN
+        putPrice(ProductId.newId(), Sku.newSku(), requestDto)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors.length()").value(1))
+                .andExpect(jsonPath("$.errors[0].field").value(field))
+                .andExpect(jsonPath("$.errors[0].code").value(code));
+        verify(changeVariantPriceUseCase, never()).changeVariantPrice(any());
+    }
+
+    private static Stream<Arguments> invalidPrices() {
+        return Stream.of(
+                arguments(ChangeVariantPriceRequestDto.builder().build(), "price", "NOT_NULL"),
+                arguments(priced(null, "EUR"), "price.amount", "NOT_NULL"),
+                arguments(priced(0L, "EUR"), "price.amount", "POSITIVE"),
+                arguments(priced(-1L, "EUR"), "price.amount", "POSITIVE"),
+                arguments(priced(12900L, null), "price.currency", "NOT_NULL"),
+                arguments(priced(12900L, "USD"), "price.currency", "PATTERN"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 MALFORMED_REQUEST, without calling the use case, WHEN the new amount has decimals")
+    void shouldReturn400WhenNewAmountHasDecimals() throws Exception {
+        // GIVEN
+        String decimalAmount = """
+                { "price": { "amount": 129.50, "currency": "EUR" } }
+                """;
+
+        // WHEN / THEN
+        mockMvc.perform(put(priceOf(ProductId.newId(), Sku.newSku()))
+                        .header(SellerProductController.SELLER_HEADER, "seller-karim")
+                        .contentType(MediaType.APPLICATION_JSON).content(decimalAmount))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+        verify(changeVariantPriceUseCase, never()).changeVariantPrice(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 MISSING_HEADER WHEN changing a price without the seller header")
+    void shouldReturn400WhenChangingPriceWithoutSellerHeader() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(put(priceOf(ProductId.newId(), Sku.newSku())).contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(priced(12900L, "EUR"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MISSING_HEADER"));
+        verify(changeVariantPriceUseCase, never()).changeVariantPrice(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 INVALID_SELLER_ID WHEN changing a price with a blank seller header")
+    void shouldReturn400WhenChangingPriceWithBlankSellerHeader() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(put(priceOf(ProductId.newId(), Sku.newSku()))
+                        .header(SellerProductController.SELLER_HEADER, "   ")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(priced(12900L, "EUR"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SELLER_ID"));
+        verify(changeVariantPriceUseCase, never()).changeVariantPrice(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/not-a-uuid/variants/01a19c2f-3c1d-7e20-8b4a-9d6e2f1a3b5c/price",
+            "/01a19c2e-7b4f-7d10-9c3a-3e5f1b2c4d6e/variants/not-a-uuid/price"})
+    @DisplayName("SHOULD return 400 INVALID_PARAMETER WHEN the product id or the sku is not a UUID")
+    void shouldReturn400WhenProductIdOrSkuIsNotUuid(final String path) throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(put(PRODUCTS + path).header(SellerProductController.SELLER_HEADER, "seller-karim")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(priced(12900L, "EUR"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+        verify(changeVariantPriceUseCase, never()).changeVariantPrice(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 PRODUCT_NOT_FOUND WHEN changing the price of a product of another seller")
+    void shouldReturn404WhenChangingPriceOfProductOfAnotherSeller() throws Exception {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        when(changeVariantPriceUseCase.changeVariantPrice(any(ChangeVariantPriceCommand.class)))
+                .thenThrow(new ProductNotFoundException(productId));
+
+        // WHEN / THEN
+        putPrice(productId, Sku.newSku(), priced(12900L, "EUR"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("PRODUCT_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 VARIANT_NOT_FOUND WHEN the product has no variant with this sku")
+    void shouldReturn404WhenProductHasNoVariantWithThisSku() throws Exception {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        Sku sku = Sku.newSku();
+        when(changeVariantPriceUseCase.changeVariantPrice(any(ChangeVariantPriceCommand.class)))
+                .thenThrow(new VariantNotFoundException(productId, sku));
+
+        // WHEN / THEN
+        putPrice(productId, sku, priced(12900L, "EUR"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("VARIANT_NOT_FOUND"))
+                .andExpect(jsonPath("$.detail").value("Variant " + sku + " not found on product " + productId));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 409 PRODUCT_MODIFIED_CONCURRENTLY WHEN the product changes during the price change")
+    void shouldReturn409WhenProductChangesDuringPriceChange() throws Exception {
+        // GIVEN
+        ProductId productId = ProductId.newId();
+        when(changeVariantPriceUseCase.changeVariantPrice(any(ChangeVariantPriceCommand.class)))
+                .thenThrow(new ProductModifiedConcurrentlyException(productId));
+
+        // WHEN / THEN
+        putPrice(productId, Sku.newSku(), priced(12900L, "EUR"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PRODUCT_MODIFIED_CONCURRENTLY"));
+    }
+
+    private ResultActions putPrice(final ProductId productId, final Sku sku,
+                                   final ChangeVariantPriceRequestDto requestDto) throws Exception {
+        return mockMvc.perform(put(priceOf(productId, sku)).header(SellerProductController.SELLER_HEADER, "seller-karim")
+                .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(requestDto)));
+    }
+
+    private static String priceOf(final ProductId productId, final Sku sku) {
+        return variantsOf(productId) + "/" + sku + "/price";
+    }
+
+    private static ChangeVariantPriceRequestDto priced(final Long amount, final String currency) {
+        return ChangeVariantPriceRequestDto.builder()
+                .price(MoneyRequestDto.builder().amount(amount).currency(currency).build()).build();
     }
 
     private ResultActions putProduct(final ProductId productId, final UpdateProductRequestDto requestDto) throws Exception {

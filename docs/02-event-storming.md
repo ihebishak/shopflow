@@ -71,7 +71,7 @@ Légende : `[tâche]` exécutée par un worker · `<◇ attente>` passerelle sur
 
 | Événement | Produit par | Écouté par | Données clés |
 |---|---|---|---|
-| `ProductPriceChanged` | catalog | order (copie locale des prix) | SKU, nouveau prix |
+| `ProductPriceChanged` | catalog | order (copie locale des prix) | SKU, ancien et nouveau prix |
 | `OrderPlaced` | order | notification, analytics | commande, client, sous-commandes par vendeur (SKU, quantité, prix), adresse, total |
 | `StockReserved` | inventory | order (processus) | commande, expiration de la réservation |
 | `StockReservationFailed` | inventory | order (processus) | commande, SKU indisponibles |
