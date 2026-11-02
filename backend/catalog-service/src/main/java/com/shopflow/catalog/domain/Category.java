@@ -13,6 +13,7 @@ import java.util.Objects;
 @Getter
 public final class Category {
 
+    public static final int NAME_MAX_LENGTH = 60;
     public static final int MAX_DEPTH = 3;
 
     private final CategorySlug slug;

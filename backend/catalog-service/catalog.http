@@ -298,3 +298,78 @@ X-Seller-Id: seller-karim
 ### Statut inconnu (400 INVALID_PARAMETER)
 GET http://localhost:8101/api/v1/seller/products?status=FOO
 X-Seller-Id: seller-karim
+
+### Créer une catégorie de premier niveau (201)
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "chaussures",
+  "name": "Chaussures"
+}
+
+### Créer une sous-catégorie (201, ancestors = [chaussures])
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "sneakers",
+  "name": "Sneakers",
+  "parentSlug": "chaussures"
+}
+
+### Créer une catégorie de troisième niveau (201, ancestors = [chaussures, sneakers])
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "running",
+  "name": "Running",
+  "parentSlug": "sneakers"
+}
+
+### Quatrième niveau (409 CATEGORY_TOO_DEEP)
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "trail",
+  "name": "Trail",
+  "parentSlug": "running"
+}
+
+### Identifiant déjà pris (409 CATEGORY_ALREADY_EXISTS)
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "chaussures",
+  "name": "Souliers"
+}
+
+### Parent inconnu (404 CATEGORY_NOT_FOUND)
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "bottes",
+  "name": "Bottes",
+  "parentSlug": "inconnue"
+}
+
+### Identifiant mal formé (400 INVALID_CATEGORY_SLUG)
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "Sneakers",
+  "name": "Sneakers"
+}
+
+### Nom manquant (400 VALIDATION_FAILED, champ name)
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "bottes"
+}
