@@ -6,8 +6,11 @@ import com.shopflow.catalog.application.api.command.CreateProductCommand;
 import com.shopflow.catalog.application.api.command.PublishProductCommand;
 import com.shopflow.catalog.application.api.command.UnpublishProductCommand;
 import com.shopflow.catalog.application.api.command.UpdateProductCommand;
+import com.shopflow.catalog.application.api.query.ListSellerProductsQuery;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
+import com.shopflow.catalog.domain.ProductPage;
+import com.shopflow.catalog.domain.ProductStatus;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
@@ -17,6 +20,7 @@ import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestD
 import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.MoneyResponseDto;
+import com.shopflow.catalog.infrastructure.web.dto.response.ProductPageResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import com.shopflow.kernel.money.Money;
@@ -24,6 +28,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -126,6 +131,47 @@ class ProductRestMapperTest {
         // THEN
         assertThat(command.getSellerId()).isEqualTo(KARIM);
         assertThat(command.getProductId()).isEqualTo(productId);
+    }
+
+    @Test
+    @DisplayName("SHOULD build the query with every value WHEN mapping a list request")
+    void shouldBuildQueryWhenMappingListRequest() {
+        // WHEN
+        ListSellerProductsQuery query = productRestMapper.toQuery(KARIM, ProductStatus.PUBLISHED, 2, 50);
+
+        // THEN
+        assertThat(query.getSellerId()).isEqualTo(KARIM);
+        assertThat(query.getStatus()).isEqualTo(ProductStatus.PUBLISHED);
+        assertThat(query.getPage()).isEqualTo(2);
+        assertThat(query.getSize()).isEqualTo(50);
+    }
+
+    @Test
+    @DisplayName("SHOULD keep no status WHEN mapping a list request without a status")
+    void shouldKeepNoStatusWhenMappingListRequestWithoutStatus() {
+        // WHEN
+        ListSellerProductsQuery query = productRestMapper.toQuery(KARIM, null, 0, 20);
+
+        // THEN
+        assertThat(query.getStatus()).isNull();
+    }
+
+    @Test
+    @DisplayName("SHOULD copy the products, the position and the totals WHEN mapping a page to the response")
+    void shouldCopyEveryFieldWhenMappingPageToResponse() {
+        // GIVEN
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
+        ProductPage page = ProductPage.builder().content(List.of(airMax)).page(1).size(20).totalElements(45).build();
+
+        // WHEN
+        ProductPageResponseDto responseDto = productRestMapper.toResponseDto(page);
+
+        // THEN
+        assertThat(responseDto.getContent()).containsExactly(productRestMapper.toResponseDto(airMax));
+        assertThat(responseDto.getPage()).isEqualTo(1);
+        assertThat(responseDto.getSize()).isEqualTo(20);
+        assertThat(responseDto.getTotalElements()).isEqualTo(45);
+        assertThat(responseDto.getTotalPages()).isEqualTo(3);
     }
 
     @Test

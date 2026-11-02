@@ -99,5 +99,8 @@ class CatalogServiceApplicationTest {
         JsonNode response = schemas.get("VariantResponseDto");
         assertThat(response.at("/properties/size/description").asText()).isEqualTo("Taille.");
         assertThat(response.at("/properties/price/description").asText()).isEqualTo("Prix de la variante.");
+        JsonNode page = schemas.get("ProductPageResponseDto");
+        assertThat(page.get("description").isTextual()).as("description de la classe").isTrue();
+        assertThat(page.at("/properties/totalPages/description").asText()).isEqualTo("Nombre total de pages.");
     }
 }

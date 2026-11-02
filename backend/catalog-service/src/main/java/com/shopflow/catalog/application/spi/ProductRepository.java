@@ -2,6 +2,9 @@ package com.shopflow.catalog.application.spi;
 
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
+import com.shopflow.catalog.domain.ProductPage;
+import com.shopflow.catalog.domain.ProductStatus;
+import com.shopflow.catalog.domain.SellerId;
 
 import java.util.Optional;
 
@@ -19,4 +22,12 @@ public interface ProductRepository {
     void save(Product product);
 
     Optional<Product> findById(ProductId id);
+
+    /**
+     * Une page des produits d'un vendeur, les plus récents d'abord.
+     *
+     * @param status le statut recherché, {@code null} pour tous les statuts
+     * @param page   le numéro de la page, à partir de 0
+     */
+    ProductPage findBySeller(SellerId sellerId, ProductStatus status, int page, int size);
 }

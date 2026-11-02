@@ -1,9 +1,11 @@
 package com.shopflow.catalog.infrastructure.web.swagger;
 
+import com.shopflow.catalog.domain.ProductStatus;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.ChangeVariantPriceRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.response.ProductPageResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,7 +24,7 @@ import java.util.UUID;
  * Documentation OpenAPI de l'API produits côté vendeur (page Swagger UI).
  * Portée par une interface pour que le contrôleur reste sans annotations de documentation.
  */
-@Tag(name = "Produits (vendeur)", description = "Un vendeur crée, consulte et modifie ses produits, leur ajoute des variantes, change "
+@Tag(name = "Produits (vendeur)", description = "Un vendeur crée, liste, consulte et modifie ses produits, leur ajoute des variantes, change "
         + "leurs prix, les publie et les dépublie.")
 public interface SellerProductControllerDocumentation {
 
@@ -40,6 +42,20 @@ public interface SellerProductControllerDocumentation {
     ResponseEntity<ProductResponseDto> createProduct(
             @Parameter(description = SELLER_HEADER_DESCRIPTION, example = "seller-karim") String sellerId,
             CreateProductRequestDto requestDto);
+
+    @Operation(summary = "Lister ses produits",
+            description = "Page par page, les plus récents d'abord, avec ou sans filtre par statut.")
+    @ApiResponse(responseCode = "200", description = "La page demandée, vide si elle est au-delà de la fin.")
+    @ApiResponse(responseCode = "400",
+            description = "Requête invalide. Codes : VALIDATION_FAILED (page ou size hors limites), "
+                    + "INVALID_PARAMETER, INVALID_SELLER_ID, MISSING_HEADER.",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    ProductPageResponseDto listProducts(
+            @Parameter(description = SELLER_HEADER_DESCRIPTION, example = "seller-karim") String sellerId,
+            @Parameter(description = "Statut recherché ; absent pour tous les statuts.") ProductStatus status,
+            @Parameter(description = "Numéro de la page, à partir de 0.", example = "0") int page,
+            @Parameter(description = "Nombre de produits par page, de 1 à 100.", example = "20") int size);
 
     @Operation(summary = "Consulter un de ses produits")
     @ApiResponse(responseCode = "200", description = "Le produit.")

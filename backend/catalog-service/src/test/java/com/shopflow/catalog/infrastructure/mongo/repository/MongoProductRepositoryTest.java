@@ -6,6 +6,8 @@ import com.shopflow.catalog.domain.DuplicateVariantException;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
+import com.shopflow.catalog.domain.ProductPage;
+import com.shopflow.catalog.domain.ProductStatus;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.catalog.infrastructure.mongo.document.ProductDocument;
@@ -20,13 +22,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.index.IndexInfo;
 import org.springframework.data.mongodb.core.query.Query;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,6 +44,8 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 class MongoProductRepositoryTest {
 
     private static final SellerId KARIM = new SellerId("seller-karim");
+    private static final SellerId LEA = new SellerId("seller-lea");
+    private static final Instant MONDAY = Instant.parse("2026-11-02T10:00:00Z");
     private static final Money PRICE = Money.euros(16_000);
 
     @Container
@@ -271,6 +278,186 @@ class MongoProductRepositoryTest {
 
         // THEN
         assertThat(error).isInstanceOf(DuplicateKeyException.class);
+    }
+
+    @Test
+    @DisplayName("SHOULD return only the products of the seller WHEN listing them")
+    void shouldReturnOnlyProductsOfSellerWhenListing() {
+        // GIVEN
+        Product airMax = saved(draftNamed(KARIM, "Air Max 90", MONDAY));
+        saved(draftNamed(LEA, "Stan Smith", MONDAY));
+
+        // WHEN
+        ProductPage page = mongoProductRepository.findBySeller(KARIM, null, 0, 20);
+
+        // THEN
+        assertThat(page.getContent()).extracting(Product::getId).containsExactly(airMax.getId());
+        assertThat(page.getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("SHOULD return every status WHEN listing without a status")
+    void shouldReturnEveryStatusWhenListingWithoutStatus() {
+        // GIVEN
+        saved(draftNamed(KARIM, "Brouillon", MONDAY));
+        saved(published("En vente", MONDAY.plusSeconds(1)));
+        saved(published("Retiré", MONDAY.plusSeconds(2)).unpublish());
+
+        // WHEN
+        ProductPage page = mongoProductRepository.findBySeller(KARIM, null, 0, 20);
+
+        // THEN
+        assertThat(page.getContent()).extracting(Product::getName).containsExactly("Retiré", "En vente", "Brouillon");
+        assertThat(page.getTotalElements()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("SHOULD return only this status and count only it WHEN listing with a status")
+    void shouldReturnOnlyThisStatusWhenListingWithStatus() {
+        // GIVEN
+        saved(draftNamed(KARIM, "Brouillon", MONDAY));
+        saved(published("En vente", MONDAY.plusSeconds(1)));
+        saved(published("Retiré", MONDAY.plusSeconds(2)).unpublish());
+
+        // WHEN
+        ProductPage page = mongoProductRepository.findBySeller(KARIM, ProductStatus.PUBLISHED, 0, 20);
+
+        // THEN
+        assertThat(page.getContent()).extracting(Product::getName).containsExactly("En vente");
+        assertThat(page.getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("SHOULD return the newest products first WHEN they were saved in another order")
+    void shouldReturnNewestFirstWhenSavedInAnotherOrder() {
+        // GIVEN
+        saved(draftNamed(KARIM, "Mardi", MONDAY.plusSeconds(86_400)));
+        saved(draftNamed(KARIM, "Lundi", MONDAY));
+        saved(draftNamed(KARIM, "Mercredi", MONDAY.plusSeconds(172_800)));
+
+        // WHEN
+        ProductPage page = mongoProductRepository.findBySeller(KARIM, null, 0, 20);
+
+        // THEN
+        assertThat(page.getContent()).extracting(Product::getName).containsExactly("Mercredi", "Mardi", "Lundi");
+    }
+
+    @Test
+    @DisplayName("SHOULD return each product exactly once WHEN products created at the same instant span several pages")
+    void shouldReturnEachProductOnceWhenSameInstantProductsSpanPages() {
+        // GIVEN
+        List<ProductId> ids = new ArrayList<>();
+        for (int number = 0; number < 5; number++) {
+            ids.add(saved(draftNamed(KARIM, "Air Max " + number, MONDAY)).getId());
+        }
+
+        // WHEN
+        List<ProductId> listed = new ArrayList<>();
+        for (int page = 0; page < 3; page++) {
+            mongoProductRepository.findBySeller(KARIM, null, page, 2).getContent().stream().map(Product::getId)
+                    .forEach(listed::add);
+        }
+
+        // THEN
+        assertThat(listed).containsExactlyInAnyOrderElementsOf(ids);
+    }
+
+    @Test
+    @DisplayName("SHOULD give the position and the totals WHEN reading the last page, which is not full")
+    void shouldGivePositionAndTotalsWhenReadingLastPage() {
+        // GIVEN
+        for (int number = 0; number < 5; number++) {
+            saved(draftNamed(KARIM, "Air Max " + number, MONDAY.plusSeconds(number)));
+        }
+
+        // WHEN
+        ProductPage page = mongoProductRepository.findBySeller(KARIM, null, 2, 2);
+
+        // THEN
+        assertThat(page.getContent()).extracting(Product::getName).containsExactly("Air Max 0");
+        assertThat(page.getPage()).isEqualTo(2);
+        assertThat(page.getSize()).isEqualTo(2);
+        assertThat(page.getTotalElements()).isEqualTo(5);
+        assertThat(page.getTotalPages()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("SHOULD return an empty content and keep the totals WHEN the page is past the end")
+    void shouldReturnEmptyContentWhenPageIsPastTheEnd() {
+        // GIVEN
+        saved(draftNamed(KARIM, "Air Max 90", MONDAY));
+
+        // WHEN
+        ProductPage page = mongoProductRepository.findBySeller(KARIM, null, 9, 20);
+
+        // THEN
+        assertThat(page.getContent()).isEmpty();
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        assertThat(page.getTotalPages()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("SHOULD return an empty content WHEN the page is too far for its position to fit in an int")
+    void shouldReturnEmptyContentWhenPagePositionDoesNotFitInInt() {
+        // GIVEN
+        saved(draftNamed(KARIM, "Air Max 90", MONDAY));
+
+        // WHEN
+        ProductPage page = mongoProductRepository.findBySeller(KARIM, null, Integer.MAX_VALUE, 100);
+
+        // THEN
+        assertThat(page.getContent()).isEmpty();
+        assertThat(page.getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("SHOULD return an empty page WHEN the seller has no product")
+    void shouldReturnEmptyPageWhenSellerHasNoProduct() {
+        // WHEN
+        ProductPage page = mongoProductRepository.findBySeller(LEA, null, 0, 20);
+
+        // THEN
+        assertThat(page.getContent()).isEmpty();
+        assertThat(page.getTotalElements()).isZero();
+        assertThat(page.getTotalPages()).isZero();
+    }
+
+    @Test
+    @DisplayName("SHOULD return the variants with the product WHEN listing")
+    void shouldReturnVariantsWithProductWhenListing() {
+        // GIVEN
+        Product airMax = saved(published("Air Max 90", MONDAY));
+
+        // WHEN
+        ProductPage page = mongoProductRepository.findBySeller(KARIM, null, 0, 20);
+
+        // THEN
+        assertThat(page.getContent().get(0).getVariants()).extracting(Variant::getSku)
+                .containsExactly(airMax.getVariants().get(0).getSku());
+    }
+
+    @Test
+    @DisplayName("SHOULD create both listing indexes WHEN the application starts")
+    void shouldCreateBothListingIndexesWhenApplicationStarts() {
+        // WHEN
+        new ProductIndexes(mongoTemplate).afterPropertiesSet();
+
+        // THEN
+        assertThat(mongoTemplate.indexOps(ProductDocument.COLLECTION).getIndexInfo()).extracting(IndexInfo::getName)
+                .contains("seller_newest_first", "seller_status_newest_first");
+    }
+
+    private Product saved(final Product product) {
+        mongoProductRepository.save(product);
+        return product;
+    }
+
+    private static Product published(final String name, final Instant createdAt) {
+        return draftNamed(KARIM, name, createdAt).addVariant(Variant.create("42", "Rouge", PRICE)).publish();
+    }
+
+    private static Product draftNamed(final SellerId sellerId, final String name, final Instant createdAt) {
+        return Product.draft(sellerId, name, "Nike", "sneakers", null, createdAt);
     }
 
     private static Product draftAirMax() {
