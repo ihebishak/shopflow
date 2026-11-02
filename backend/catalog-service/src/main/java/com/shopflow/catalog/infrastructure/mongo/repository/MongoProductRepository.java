@@ -70,10 +70,14 @@ public class MongoProductRepository implements ProductRepository {
             query.addCriteria(where("status").is(status));
         }
         long totalElements = mongoTemplate.count(query, ProductDocument.class);
-        List<Product> content = mongoTemplate
-                .find(query.with(PageRequest.of(page, size, NEWEST_FIRST)), ProductDocument.class).stream()
-                .map(productDocumentMapper::toDomain).toList();
+        PageRequest pageRequest = PageRequest.of(page, size, NEWEST_FIRST);
+        // MongoTemplate tronque le décalage en int : au-delà de la fin, lire pourrait renvoyer les premiers produits
+        List<Product> content = pageRequest.getOffset() < totalElements ? read(query.with(pageRequest)) : List.of();
         return ProductPage.builder().content(content).page(page).size(size).totalElements(totalElements).build();
+    }
+
+    private List<Product> read(final Query query) {
+        return mongoTemplate.find(query, ProductDocument.class).stream().map(productDocumentMapper::toDomain).toList();
     }
 
     private static boolean isWriteConflict(final DataIntegrityViolationException exception) {

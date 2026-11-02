@@ -5,6 +5,7 @@ import com.shopflow.catalog.application.api.AddVariantUseCase;
 import com.shopflow.catalog.application.api.ChangeVariantPriceUseCase;
 import com.shopflow.catalog.application.api.CreateProductUseCase;
 import com.shopflow.catalog.application.api.GetSellerProductUseCase;
+import com.shopflow.catalog.application.api.ListSellerProductsUseCase;
 import com.shopflow.catalog.application.api.PublishProductUseCase;
 import com.shopflow.catalog.application.api.UnpublishProductUseCase;
 import com.shopflow.catalog.application.api.UpdateProductUseCase;
@@ -14,12 +15,15 @@ import com.shopflow.catalog.application.api.command.CreateProductCommand;
 import com.shopflow.catalog.application.api.command.PublishProductCommand;
 import com.shopflow.catalog.application.api.command.UnpublishProductCommand;
 import com.shopflow.catalog.application.api.command.UpdateProductCommand;
+import com.shopflow.catalog.application.api.query.ListSellerProductsQuery;
 import com.shopflow.catalog.domain.DuplicateVariantException;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
 import com.shopflow.catalog.domain.ProductNotFoundException;
 import com.shopflow.catalog.domain.ProductNotPublishedException;
+import com.shopflow.catalog.domain.ProductPage;
+import com.shopflow.catalog.domain.ProductStatus;
 import com.shopflow.catalog.domain.ProductWithoutVariantException;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Sku;
@@ -47,6 +51,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -97,6 +102,9 @@ class SellerProductControllerTest {
 
     @MockitoBean
     private ChangeVariantPriceUseCase changeVariantPriceUseCase;
+
+    @MockitoBean
+    private ListSellerProductsUseCase listSellerProductsUseCase;
 
     @MockitoBean
     private PublishProductUseCase publishProductUseCase;
@@ -843,6 +851,100 @@ class SellerProductControllerTest {
         postUnpublish(productId)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PRODUCT_MODIFIED_CONCURRENTLY"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 200 with the page WHEN a seller lists products")
+    void shouldReturn200WhenSellerListsProducts() throws Exception {
+        // GIVEN
+        Product airMax = airMaxOf(KARIM);
+        when(listSellerProductsUseCase.listSellerProducts(any(ListSellerProductsQuery.class)))
+                .thenReturn(ProductPage.builder().content(List.of(airMax)).page(1).size(20).totalElements(45).build());
+
+        // WHEN / THEN
+        mockMvc.perform(get(PRODUCTS).header(SellerProductController.SELLER_HEADER, "seller-karim"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(airMax.getId().toString()))
+                .andExpect(jsonPath("$.content[0].status").value("DRAFT"))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(45))
+                .andExpect(jsonPath("$.totalPages").value(3));
+    }
+
+    @Test
+    @DisplayName("SHOULD ask for the first page of 20 products of every status WHEN no parameter is given")
+    void shouldUseDefaultsWhenNoParameterIsGiven() throws Exception {
+        // GIVEN
+        when(listSellerProductsUseCase.listSellerProducts(any(ListSellerProductsQuery.class))).thenReturn(emptyPage());
+
+        // WHEN
+        mockMvc.perform(get(PRODUCTS).header(SellerProductController.SELLER_HEADER, "seller-karim"))
+                .andExpect(status().isOk());
+
+        // THEN
+        ArgumentCaptor<ListSellerProductsQuery> query = ArgumentCaptor.forClass(ListSellerProductsQuery.class);
+        verify(listSellerProductsUseCase).listSellerProducts(query.capture());
+        assertThat(query.getValue().getSellerId()).isEqualTo(KARIM);
+        assertThat(query.getValue().getStatus()).isNull();
+        assertThat(query.getValue().getPage()).isZero();
+        assertThat(query.getValue().getSize()).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("SHOULD pass the status, the page and the size WHEN they are given")
+    void shouldPassParametersWhenTheyAreGiven() throws Exception {
+        // GIVEN
+        when(listSellerProductsUseCase.listSellerProducts(any(ListSellerProductsQuery.class))).thenReturn(emptyPage());
+
+        // WHEN
+        mockMvc.perform(get(PRODUCTS).header(SellerProductController.SELLER_HEADER, "seller-karim")
+                        .param("status", "PUBLISHED").param("page", "2").param("size", "50"))
+                .andExpect(status().isOk());
+
+        // THEN
+        ArgumentCaptor<ListSellerProductsQuery> query = ArgumentCaptor.forClass(ListSellerProductsQuery.class);
+        verify(listSellerProductsUseCase).listSellerProducts(query.capture());
+        assertThat(query.getValue().getStatus()).isEqualTo(ProductStatus.PUBLISHED);
+        assertThat(query.getValue().getPage()).isEqualTo(2);
+        assertThat(query.getValue().getSize()).isEqualTo(50);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"status=FOO", "page=abc", "size=abc"})
+    @DisplayName("SHOULD return 400 INVALID_PARAMETER WHEN a list parameter has the wrong type")
+    void shouldReturn400WhenListParameterHasWrongType(final String parameter) throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(get(PRODUCTS + "?" + parameter).header(SellerProductController.SELLER_HEADER, "seller-karim"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+        verify(listSellerProductsUseCase, never()).listSellerProducts(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 MISSING_HEADER WHEN listing without the seller header")
+    void shouldReturn400WhenListingWithoutSellerHeader() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(get(PRODUCTS))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MISSING_HEADER"));
+        verify(listSellerProductsUseCase, never()).listSellerProducts(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 INVALID_SELLER_ID WHEN listing with a blank seller header")
+    void shouldReturn400WhenListingWithBlankSellerHeader() throws Exception {
+        // WHEN / THEN
+        mockMvc.perform(get(PRODUCTS).header(SellerProductController.SELLER_HEADER, "   "))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SELLER_ID"));
+        verify(listSellerProductsUseCase, never()).listSellerProducts(any());
+    }
+
+    private static ProductPage emptyPage() {
+        return ProductPage.builder().content(List.of()).page(0).size(20).totalElements(0).build();
     }
 
     private ResultActions postUnpublish(final ProductId productId) throws Exception {

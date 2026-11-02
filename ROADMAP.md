@@ -98,7 +98,7 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 - ✅ 3.7 Variantes (pointure × coloris, SKU, prix) + `ProductVariantAdded`
 - ✅ 3.8 Modifier un produit, changer un prix (`ProductUpdated`, `ProductPriceChanged`)
 - ✅ 3.9 Publier / dépublier (`ProductPublished`, `ProductUnpublished`), pas de publication sans variante
-- ⬜ 3.10 Lister ses produits (pagination, filtre par statut)
+- ✅ 3.10 Lister ses produits (pagination, filtre par statut)
 - ⬜ 3.11 Catégories arborescentes
 - ⬜ 3.12 Images produits (stockage MinIO, compatible S3)
 - ⬜ 3.13 Recherche full-text + filtres à facettes + tri + pagination

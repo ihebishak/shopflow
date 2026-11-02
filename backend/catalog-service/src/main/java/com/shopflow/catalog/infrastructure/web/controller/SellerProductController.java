@@ -4,11 +4,14 @@ import com.shopflow.catalog.application.api.AddVariantUseCase;
 import com.shopflow.catalog.application.api.ChangeVariantPriceUseCase;
 import com.shopflow.catalog.application.api.CreateProductUseCase;
 import com.shopflow.catalog.application.api.GetSellerProductUseCase;
+import com.shopflow.catalog.application.api.ListSellerProductsUseCase;
 import com.shopflow.catalog.application.api.PublishProductUseCase;
 import com.shopflow.catalog.application.api.UnpublishProductUseCase;
 import com.shopflow.catalog.application.api.UpdateProductUseCase;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
+import com.shopflow.catalog.domain.ProductPage;
+import com.shopflow.catalog.domain.ProductStatus;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
@@ -16,6 +19,7 @@ import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.ChangeVariantPriceRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.response.ProductPageResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import com.shopflow.catalog.infrastructure.web.mapper.ProductRestMapper;
@@ -32,6 +36,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -54,6 +59,7 @@ public class SellerProductController implements SellerProductControllerDocumenta
 
     private final CreateProductUseCase createProductUseCase;
     private final GetSellerProductUseCase getSellerProductUseCase;
+    private final ListSellerProductsUseCase listSellerProductsUseCase;
     private final UpdateProductUseCase updateProductUseCase;
     private final AddVariantUseCase addVariantUseCase;
     private final ChangeVariantPriceUseCase changeVariantPriceUseCase;
@@ -71,6 +77,19 @@ public class SellerProductController implements SellerProductControllerDocumenta
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{productId}").buildAndExpand(product.getId()).toUri();
         return ResponseEntity.created(location).body(productRestMapper.toResponseDto(product));
+    }
+
+    /** Les produits du vendeur, page par page, les plus récents d'abord. */
+    @Override
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.OK)
+    public ProductPageResponseDto listProducts(@RequestHeader(SELLER_HEADER) final String sellerId,
+                                               @RequestParam(required = false) final ProductStatus status,
+                                               @RequestParam(defaultValue = "0") final int page,
+                                               @RequestParam(defaultValue = "20") final int size) {
+        ProductPage products = listSellerProductsUseCase.listSellerProducts(
+                productRestMapper.toQuery(new SellerId(sellerId), status, page, size));
+        return productRestMapper.toResponseDto(products);
     }
 
     /** Un des produits du vendeur. */

@@ -270,3 +270,31 @@ X-Seller-Id: seller-karim
 ### Remettre le produit en vente (200, statut PUBLISHED)
 POST http://localhost:8101/api/v1/seller/products/{{productId}}/publish
 X-Seller-Id: seller-karim
+
+### Lister ses produits, les plus récents d'abord (200, page 0 et 20 produits par défaut)
+GET http://localhost:8101/api/v1/seller/products
+X-Seller-Id: seller-karim
+
+### Lister seulement ses produits en vente (200)
+GET http://localhost:8101/api/v1/seller/products?status=PUBLISHED
+X-Seller-Id: seller-karim
+
+### Choisir la page et sa taille (200)
+GET http://localhost:8101/api/v1/seller/products?page=0&size=1
+X-Seller-Id: seller-karim
+
+### Page au-delà de la fin (200, content vide)
+GET http://localhost:8101/api/v1/seller/products?page=99
+X-Seller-Id: seller-karim
+
+### Un autre vendeur ne voit pas ces produits (200, sa propre liste)
+GET http://localhost:8101/api/v1/seller/products
+X-Seller-Id: seller-lea
+
+### Page trop grande (400 VALIDATION_FAILED, champ size)
+GET http://localhost:8101/api/v1/seller/products?size=500
+X-Seller-Id: seller-karim
+
+### Statut inconnu (400 INVALID_PARAMETER)
+GET http://localhost:8101/api/v1/seller/products?status=FOO
+X-Seller-Id: seller-karim

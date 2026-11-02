@@ -7,6 +7,7 @@ import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestD
 import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.MoneyResponseDto;
+import com.shopflow.catalog.infrastructure.web.dto.response.ProductPageResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import org.junit.jupiter.api.DisplayName;
@@ -546,6 +547,121 @@ class SellerProductApiTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody().get("code").asText()).isEqualTo("PRODUCT_NOT_FOUND");
         assertThat(readProduct(product).getStatus()).isEqualTo("PUBLISHED");
+    }
+
+    @Test
+    @DisplayName("SHOULD return only the products of the seller, newest first, WHEN a seller lists products")
+    void shouldReturnOnlyProductsOfSellerNewestFirstWhenSellerListsProducts() {
+        // GIVEN
+        String sellerId = newSeller();
+        ProductResponseDto first = createAirMax(sellerId).getBody();
+        ProductResponseDto second = createAirMax(sellerId).getBody();
+        createAirMax(newSeller());
+
+        // WHEN
+        ResponseEntity<ProductPageResponseDto> response = list("", sellerId, ProductPageResponseDto.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getContent()).extracting(ProductResponseDto::getId)
+                .containsExactly(second.getId(), first.getId());
+        assertThat(response.getBody().getPage()).isZero();
+        assertThat(response.getBody().getSize()).isEqualTo(20);
+        assertThat(response.getBody().getTotalElements()).isEqualTo(2);
+        assertThat(response.getBody().getTotalPages()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("SHOULD return only this status WHEN a seller filters by status")
+    void shouldReturnOnlyThisStatusWhenSellerFiltersByStatus() {
+        // GIVEN
+        String sellerId = newSeller();
+        createAirMax(sellerId);
+        ResponseEntity<ProductResponseDto> created = createAirMax(sellerId);
+        addVariant(created.getHeaders().getLocation(), sellerId, "42", VariantResponseDto.class);
+        publish(created.getHeaders().getLocation(), sellerId, ProductResponseDto.class);
+
+        // WHEN
+        ResponseEntity<ProductPageResponseDto> response = list("?status=PUBLISHED", sellerId,
+                ProductPageResponseDto.class);
+
+        // THEN
+        assertThat(response.getBody().getContent()).extracting(ProductResponseDto::getId)
+                .containsExactly(created.getBody().getId());
+        assertThat(response.getBody().getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("SHOULD return the requested page and the totals WHEN a seller gives a page and a size")
+    void shouldReturnRequestedPageWhenSellerGivesPageAndSize() {
+        // GIVEN
+        String sellerId = newSeller();
+        createAirMax(sellerId);
+        createAirMax(sellerId);
+        createAirMax(sellerId);
+
+        // WHEN
+        ResponseEntity<ProductPageResponseDto> response = list("?page=1&size=2", sellerId,
+                ProductPageResponseDto.class);
+
+        // THEN
+        assertThat(response.getBody().getContent()).hasSize(1);
+        assertThat(response.getBody().getPage()).isEqualTo(1);
+        assertThat(response.getBody().getSize()).isEqualTo(2);
+        assertThat(response.getBody().getTotalElements()).isEqualTo(3);
+        assertThat(response.getBody().getTotalPages()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("SHOULD return 200 with no product WHEN the page is the largest possible number")
+    void shouldReturnNoProductWhenPageIsLargestPossibleNumber() {
+        // GIVEN
+        String sellerId = newSeller();
+        createAirMax(sellerId);
+
+        // WHEN
+        ResponseEntity<ProductPageResponseDto> response = list("?page=2147483647&size=100", sellerId,
+                ProductPageResponseDto.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getContent()).isEmpty();
+        assertThat(response.getBody().getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 VALIDATION_FAILED and name the field WHEN the size is too large")
+    void shouldReturn400WhenSizeIsTooLarge() {
+        // WHEN
+        ResponseEntity<JsonNode> response = list("?size=500", "seller-karim", JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("VALIDATION_FAILED");
+        assertThat(response.getBody().at("/errors/0/field").asText()).isEqualTo("size");
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 VALIDATION_FAILED and name the field WHEN the page is negative")
+    void shouldReturn400WhenPageIsNegative() {
+        // WHEN
+        ResponseEntity<JsonNode> response = list("?page=-1", "seller-karim", JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("VALIDATION_FAILED");
+        assertThat(response.getBody().at("/errors/0/field").asText()).isEqualTo("page");
+    }
+
+    private <T> ResponseEntity<T> list(final String parameters, final String sellerId, final Class<T> responseType) {
+        return restTemplate.exchange(PRODUCTS + parameters, HttpMethod.GET, new HttpEntity<>(sellerHeader(sellerId)),
+                responseType);
+    }
+
+    /** Le MongoDB du test est partagé : un vendeur à part ne voit que les produits créés par son test. */
+    private static String newSeller() {
+        return "seller-" + UUID.randomUUID();
     }
 
     private <T> ResponseEntity<T> unpublish(final URI product, final String sellerId, final Class<T> responseType) {

@@ -6,8 +6,11 @@ import com.shopflow.catalog.application.api.command.CreateProductCommand;
 import com.shopflow.catalog.application.api.command.PublishProductCommand;
 import com.shopflow.catalog.application.api.command.UnpublishProductCommand;
 import com.shopflow.catalog.application.api.command.UpdateProductCommand;
+import com.shopflow.catalog.application.api.query.ListSellerProductsQuery;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
+import com.shopflow.catalog.domain.ProductPage;
+import com.shopflow.catalog.domain.ProductStatus;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.Variant;
@@ -16,6 +19,7 @@ import com.shopflow.catalog.infrastructure.web.dto.request.ChangeVariantPriceReq
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.MoneyRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.response.ProductPageResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import com.shopflow.kernel.money.Money;
@@ -56,7 +60,15 @@ public interface ProductRestMapper {
     @Mapping(target = "productId", source = "productId")
     UnpublishProductCommand toUnpublishCommand(SellerId sellerId, ProductId productId);
 
+    @Mapping(target = "sellerId", source = "sellerId")
+    @Mapping(target = "status", source = "status")
+    @Mapping(target = "page", source = "page")
+    @Mapping(target = "size", source = "size")
+    ListSellerProductsQuery toQuery(SellerId sellerId, ProductStatus status, int page, int size);
+
     ProductResponseDto toResponseDto(Product product);
+
+    ProductPageResponseDto toResponseDto(ProductPage products);
 
     VariantResponseDto toResponseDto(Variant variant);
 

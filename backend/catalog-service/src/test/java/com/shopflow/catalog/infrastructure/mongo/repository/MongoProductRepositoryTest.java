@@ -397,6 +397,20 @@ class MongoProductRepositoryTest {
     }
 
     @Test
+    @DisplayName("SHOULD return an empty content WHEN the page is too far for its position to fit in an int")
+    void shouldReturnEmptyContentWhenPagePositionDoesNotFitInInt() {
+        // GIVEN
+        saved(draftNamed(KARIM, "Air Max 90", MONDAY));
+
+        // WHEN
+        ProductPage page = mongoProductRepository.findBySeller(KARIM, null, Integer.MAX_VALUE, 100);
+
+        // THEN
+        assertThat(page.getContent()).isEmpty();
+        assertThat(page.getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("SHOULD return an empty page WHEN the seller has no product")
     void shouldReturnEmptyPageWhenSellerHasNoProduct() {
         // WHEN
