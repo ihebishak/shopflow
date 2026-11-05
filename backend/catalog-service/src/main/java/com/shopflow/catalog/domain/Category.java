@@ -51,4 +51,14 @@ public final class Category {
         childAncestors.add(slug);
         return new Category(childSlug, childName.strip(), childAncestors);
     }
+
+    /** Vrai pour une catégorie de premier niveau. */
+    public boolean isRoot() {
+        return ancestors.isEmpty();
+    }
+
+    /** Vrai si {@code parent} est son parent direct : le plus proche de ses ancêtres. */
+    public boolean isChildOf(final Category parent) {
+        return !isRoot() && ancestors.get(ancestors.size() - 1).equals(parent.slug);
+    }
 }

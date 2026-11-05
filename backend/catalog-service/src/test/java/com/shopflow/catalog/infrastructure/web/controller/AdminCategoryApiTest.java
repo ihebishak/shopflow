@@ -2,6 +2,7 @@ package com.shopflow.catalog.infrastructure.web.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateCategoryRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.response.CategoryNodeResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.CategoryResponseDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AdminCategoryApiTest {
 
     private static final String CATEGORIES = "/api/v1/admin/categories";
+    private static final String PUBLIC_CATEGORIES = "/api/v1/categories";
 
     @Container
     @ServiceConnection
@@ -65,6 +68,32 @@ class AdminCategoryApiTest {
         assertThat(fourth.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(fourth.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
         assertThat(fourth.getBody().get("code").asText()).isEqualTo("CATEGORY_TOO_DEEP");
+    }
+
+    @Test
+    @DisplayName("SHOULD find the categories in the public tree WHEN the admin has created them on three levels")
+    void shouldFindCategoriesInPublicTreeWhenAdminHasCreatedThem() {
+        // GIVEN
+        String shoes = unique("chaussures");
+        String sneakers = unique("sneakers");
+        String running = unique("running");
+        create(shoes, "Chaussures", null);
+        create(sneakers, "Sneakers", shoes);
+        create(running, "Running", sneakers);
+
+        // WHEN
+        ResponseEntity<CategoryNodeResponseDto[]> response =
+                restTemplate.getForEntity(PUBLIC_CATEGORIES, CategoryNodeResponseDto[].class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        CategoryNodeResponseDto root = Arrays.stream(response.getBody())
+                .filter(node -> node.getSlug().equals(shoes)).findFirst().orElseThrow();
+        assertThat(root.getName()).isEqualTo("Chaussures");
+        assertThat(root.getChildren()).extracting(CategoryNodeResponseDto::getSlug).containsExactly(sneakers);
+        CategoryNodeResponseDto child = root.getChildren().get(0);
+        assertThat(child.getChildren()).extracting(CategoryNodeResponseDto::getSlug).containsExactly(running);
+        assertThat(child.getChildren().get(0).getChildren()).isEmpty();
     }
 
     @Test

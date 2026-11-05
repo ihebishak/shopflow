@@ -79,7 +79,8 @@ class CatalogServiceApplicationTest {
                 .contains("Produits (vendeur)")
                 .contains("X-Seller-Id")
                 .contains("\"/api/v1/admin/categories\"")
-                .contains("Catégories (admin)");
+                .contains("Catégories (admin)")
+                .contains("\"/api/v1/categories\"");
         assertThat(http.getForEntity("/swagger-ui/index.html", String.class).getStatusCode().is2xxSuccessful())
                 .as("page Swagger UI").isTrue();
     }
@@ -110,5 +111,9 @@ class CatalogServiceApplicationTest {
         assertThat(category.get("required")).extracting(JsonNode::asText).containsExactlyInAnyOrder("slug", "name");
         assertThat(schemas.at("/CategoryResponseDto/properties/ancestors/description").asText())
                 .startsWith("Identifiants des parents");
+        JsonNode node = schemas.get("CategoryNodeResponseDto");
+        assertThat(node.at("/properties/name/description").asText()).isEqualTo("Nom affiché.");
+        assertThat(node.at("/properties/children/description").asText()).startsWith("Les sous-catégories");
+        assertThat(node.at("/properties/children/items/$ref").asText()).endsWith("/CategoryNodeResponseDto");
     }
 }

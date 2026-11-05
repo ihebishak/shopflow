@@ -373,3 +373,6 @@ Content-Type: application/json
 {
   "slug": "bottes"
 }
+
+### Lire l'arbre des catégories, sans en-tête (200)
+GET http://localhost:8101/api/v1/categories

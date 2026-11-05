@@ -60,6 +60,32 @@ class CategoryTest {
     }
 
     @Test
+    @DisplayName("SHOULD be a root only WHEN the category is at the first level")
+    void shouldBeRootOnlyWhenCategoryIsAtFirstLevel() {
+        // GIVEN
+        Category clothes = Category.root(CLOTHES, "Vêtements");
+
+        // WHEN / THEN
+        assertThat(clothes.isRoot()).isTrue();
+        assertThat(clothes.child(TOPS, "Hauts").isRoot()).isFalse();
+    }
+
+    @Test
+    @DisplayName("SHOULD be the child of its direct parent only WHEN the tree has three levels")
+    void shouldBeChildOfDirectParentOnlyWhenTreeHasThreeLevels() {
+        // GIVEN
+        Category clothes = Category.root(CLOTHES, "Vêtements");
+        Category tops = clothes.child(TOPS, "Hauts");
+        Category tShirts = tops.child(T_SHIRTS, "T-shirts");
+
+        // WHEN / THEN
+        assertThat(tShirts.isChildOf(tops)).isTrue();
+        assertThat(tShirts.isChildOf(clothes)).as("grand-parent").isFalse();
+        assertThat(tops.isChildOf(tShirts)).as("enfant").isFalse();
+        assertThat(clothes.isChildOf(tops)).as("catégorie de premier niveau").isFalse();
+    }
+
+    @Test
     @DisplayName("SHOULD rebuild the same category WHEN it is restored")
     void shouldRebuildSameCategoryWhenRestored() {
         // WHEN

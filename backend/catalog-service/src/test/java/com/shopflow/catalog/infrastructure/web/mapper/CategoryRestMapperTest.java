@@ -2,12 +2,16 @@ package com.shopflow.catalog.infrastructure.web.mapper;
 
 import com.shopflow.catalog.application.api.command.CreateCategoryCommand;
 import com.shopflow.catalog.domain.Category;
+import com.shopflow.catalog.domain.CategoryNode;
 import com.shopflow.catalog.domain.CategorySlug;
 import com.shopflow.catalog.domain.InvalidCategorySlugException;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateCategoryRequestDto;
+import com.shopflow.catalog.infrastructure.web.dto.response.CategoryNodeResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.CategoryResponseDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -79,5 +83,25 @@ class CategoryRestMapperTest {
         assertThat(responseDto.getSlug()).isEqualTo("sneakers");
         assertThat(responseDto.getName()).isEqualTo("Sneakers");
         assertThat(responseDto.getAncestors()).containsExactly("chaussures");
+    }
+
+    @Test
+    @DisplayName("SHOULD copy each node and its children WHEN mapping a tree")
+    void shouldCopyEachNodeAndItsChildrenWhenMappingTree() {
+        // GIVEN
+        Category shoes = Category.root(SHOES, "Chaussures");
+        List<CategoryNode> tree = CategoryNode.treeOf(List.of(shoes, shoes.child(SNEAKERS, "Sneakers")));
+
+        // WHEN
+        List<CategoryNodeResponseDto> responseDtos = categoryRestMapper.toResponseDtos(tree);
+
+        // THEN
+        assertThat(responseDtos).hasSize(1);
+        assertThat(responseDtos.get(0).getSlug()).isEqualTo("chaussures");
+        assertThat(responseDtos.get(0).getName()).isEqualTo("Chaussures");
+        CategoryNodeResponseDto child = responseDtos.get(0).getChildren().get(0);
+        assertThat(child.getSlug()).isEqualTo("sneakers");
+        assertThat(child.getName()).isEqualTo("Sneakers");
+        assertThat(child.getChildren()).isEmpty();
     }
 }
