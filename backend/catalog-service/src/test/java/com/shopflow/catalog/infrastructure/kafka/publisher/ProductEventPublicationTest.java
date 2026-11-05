@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.shopflow.catalog.application.spi.CategoryRepository;
 import com.shopflow.catalog.domain.Category;
 import com.shopflow.catalog.domain.CategorySlug;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.infrastructure.mongo.document.ProductDocument;
 import com.shopflow.catalog.infrastructure.web.controller.SellerProductController;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
@@ -14,6 +15,7 @@ import com.shopflow.catalog.infrastructure.web.dto.request.UpdateProductRequestD
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
 import com.shopflow.contracts.product.ProductCreated;
+import com.shopflow.contracts.product.ProductGender;
 import com.shopflow.contracts.product.ProductPriceChanged;
 import com.shopflow.contracts.product.ProductPublished;
 import com.shopflow.contracts.product.ProductUnpublished;
@@ -127,6 +129,7 @@ class ProductEventPublicationTest {
         assertThat(event.getName()).isEqualTo("Air Max 90 Infrared");
         assertThat(event.getBrand()).isEqualTo("Nike");
         assertThat(event.getCategory()).isEqualTo("sneakers");
+        assertThat(event.getGender()).isEqualTo(ProductGender.UNISEX);
         assertThat(event.getVariants()).isEmpty();
 
         EventMetadata metadata = EventMetadata.fromHeaders(record.headers()).orElseThrow();
@@ -213,7 +216,7 @@ class ProductEventPublicationTest {
         String productId = createdProductId();
         String correlationId = "corr-" + UUID.randomUUID();
         UpdateProductRequestDto requestDto = UpdateProductRequestDto.builder().name("Air Max 90 OG").brand("Nike")
-                .category("sneakers").description("La réédition du modèle de 1990").build();
+                .category("sneakers").gender(Gender.UNISEX).description("La réédition du modèle de 1990").build();
 
         // WHEN
         ResponseEntity<ProductResponseDto> response = restTemplate.exchange(PRODUCTS + "/" + productId, HttpMethod.PUT,
@@ -242,7 +245,7 @@ class ProductEventPublicationTest {
         doThrow(new IllegalStateException("outbox unavailable"))
                 .when(outboxPublisher).publish(anyString(), anyString(), any(SpecificRecord.class));
         UpdateProductRequestDto requestDto = UpdateProductRequestDto.builder().name("Air Max 90 OG").brand("Nike")
-                .category("sneakers").build();
+                .category("sneakers").gender(Gender.UNISEX).build();
 
         // WHEN
         ResponseEntity<JsonNode> response = restTemplate.exchange(PRODUCTS + "/" + productId, HttpMethod.PUT,
@@ -452,7 +455,8 @@ class ProductEventPublicationTest {
     }
 
     private static CreateProductRequestDto airMax(final String name) {
-        return CreateProductRequestDto.builder().name(name).brand("Nike").category("sneakers").build();
+        return CreateProductRequestDto.builder().name(name).brand("Nike").category("sneakers").gender(Gender.UNISEX)
+                .build();
     }
 
     private static HttpHeaders headers(final String correlationId) {

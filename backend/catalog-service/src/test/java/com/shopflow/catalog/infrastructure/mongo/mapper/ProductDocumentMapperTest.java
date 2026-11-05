@@ -1,5 +1,6 @@
 package com.shopflow.catalog.infrastructure.mongo.mapper;
 
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductStatus;
 import com.shopflow.catalog.domain.SellerId;
@@ -29,7 +30,8 @@ class ProductDocumentMapperTest {
     @DisplayName("SHOULD copy every field WHEN mapping a product to a document")
     void shouldCopyEveryFieldWhenMappingProductToDocument() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", "Réédition 1990", NOW);
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX,
+                "Réédition 1990", NOW);
 
         // WHEN
         ProductDocument document = productDocumentMapper.toDocument(airMax);
@@ -40,6 +42,7 @@ class ProductDocumentMapperTest {
         assertThat(document.getName()).isEqualTo("Air Max 90 Infrared");
         assertThat(document.getBrand()).isEqualTo("Nike");
         assertThat(document.getCategory()).isEqualTo("sneakers");
+        assertThat(document.getGender()).isEqualTo(Gender.UNISEX);
         assertThat(document.getDescription()).isEqualTo("Réédition 1990");
         assertThat(document.getStatus()).isEqualTo(ProductStatus.DRAFT);
         assertThat(document.getCreatedAt()).isEqualTo(NOW);
@@ -49,7 +52,7 @@ class ProductDocumentMapperTest {
     @DisplayName("SHOULD leave the description null WHEN the product has none")
     void shouldLeaveDescriptionNullWhenProductHasNone() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, NOW);
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null, NOW);
 
         // WHEN
         ProductDocument document = productDocumentMapper.toDocument(airMax);
@@ -62,7 +65,7 @@ class ProductDocumentMapperTest {
     @DisplayName("SHOULD rebuild the same product WHEN mapping a document back to the domain")
     void shouldRebuildSameProductWhenMappingDocumentBack() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, NOW);
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null, NOW);
         ProductDocument document = productDocumentMapper.toDocument(airMax);
 
         // WHEN
@@ -78,7 +81,8 @@ class ProductDocumentMapperTest {
     void shouldCopyEveryVariantFieldWhenMappingProductToDocument() {
         // GIVEN
         Variant variant = Variant.create("42", "Rouge", Money.euros(16_000));
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, NOW).addVariant(variant);
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null, NOW)
+                .addVariant(variant);
 
         // WHEN
         ProductDocument document = productDocumentMapper.toDocument(airMax);
@@ -97,7 +101,7 @@ class ProductDocumentMapperTest {
     @DisplayName("SHOULD rebuild the same variants WHEN mapping a document back to the domain")
     void shouldRebuildSameVariantsWhenMappingDocumentBack() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, NOW)
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null, NOW)
                 .addVariant(Variant.create("42", "Rouge", Money.euros(16_000)))
                 .addVariant(Variant.create("43", "Noir", Money.euros(17_000)));
         ProductDocument document = productDocumentMapper.toDocument(airMax);
@@ -124,6 +128,21 @@ class ProductDocumentMapperTest {
         // THEN
         assertThat(product.getVersion()).isEqualTo(5L);
         assertThat(mappedBack.getVersion()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("SHOULD have no gender WHEN the document was saved before the gender existed")
+    void shouldHaveNoGenderWhenDocumentWasSavedBeforeGenderExisted() {
+        // GIVEN
+        ProductDocument document = ProductDocument.builder().id(UuidV7.generate().toString())
+                .sellerId("seller-karim").name("Air Max 90").brand("Nike").category("sneakers")
+                .status(ProductStatus.DRAFT).createdAt(NOW).build();
+
+        // WHEN
+        Product rebuilt = productDocumentMapper.toDomain(document);
+
+        // THEN
+        assertThat(rebuilt.getGender()).isEmpty();
     }
 
     @Test

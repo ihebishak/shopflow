@@ -3,6 +3,7 @@ package com.shopflow.catalog.application.service;
 import com.shopflow.catalog.application.api.command.PublishProductCommand;
 import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.application.spi.ProductRepository;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
@@ -162,7 +163,7 @@ class PublishProductServiceTest {
     }
 
     private static Product draftOf(final SellerId sellerId) {
-        return Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
+        return Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null, Instant.now());
     }
 
     private static PublishProductCommand commandOf(final SellerId sellerId, final ProductId productId) {

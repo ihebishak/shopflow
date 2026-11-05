@@ -1,5 +1,6 @@
 package com.shopflow.catalog.application.service;
 
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductNotFoundException;
@@ -68,7 +69,8 @@ class GetSellerProductServiceTest {
     }
 
     private Product savedProductOf(final SellerId sellerId) {
-        Product product = Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
+        Product product = Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null,
+                Instant.now());
         productRepository.save(product);
         return product;
     }

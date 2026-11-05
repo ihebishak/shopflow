@@ -66,6 +66,7 @@
                             <imports>
                                 <import>${project.basedir}/src/main/avro/common/Money.avsc</import>
                                 <import>${project.basedir}/src/main/avro/product/ProductVariant.avsc</import>
+                                <import>${project.basedir}/src/main/avro/product/ProductGender.avsc</import>
                                 <import>${project.basedir}/src/main/avro/product/UnpublishReason.avsc</import>
                             </imports>
                         </configuration>

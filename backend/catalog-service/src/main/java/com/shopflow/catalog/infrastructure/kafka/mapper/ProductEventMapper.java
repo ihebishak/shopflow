@@ -1,5 +1,6 @@
 package com.shopflow.catalog.infrastructure.kafka.mapper;
 
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
@@ -7,6 +8,7 @@ import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.UnpublishReason;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.contracts.product.ProductCreated;
+import com.shopflow.contracts.product.ProductGender;
 import com.shopflow.contracts.product.ProductPriceChanged;
 import com.shopflow.contracts.product.ProductPublished;
 import com.shopflow.contracts.product.ProductUnpublished;
@@ -18,6 +20,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Conversions du domaine vers les événements Avro. Le code est généré par MapStruct ({@code ProductEventMapperImpl}).
@@ -62,5 +65,10 @@ public interface ProductEventMapper {
 
     default String map(final Sku sku) {
         return sku.toString();
+    }
+
+    /** Le contrat Avro a son propre type, aux mêmes valeurs : le domaine peut évoluer sans le casser. */
+    default ProductGender toProductGender(final Optional<Gender> gender) {
+        return gender.map(value -> ProductGender.valueOf(value.name())).orElse(null);
     }
 }

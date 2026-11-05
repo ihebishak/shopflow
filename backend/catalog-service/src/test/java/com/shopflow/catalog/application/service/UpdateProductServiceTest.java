@@ -6,6 +6,7 @@ import com.shopflow.catalog.application.spi.ProductRepository;
 import com.shopflow.catalog.domain.Category;
 import com.shopflow.catalog.domain.CategoryNotFoundException;
 import com.shopflow.catalog.domain.CategorySlug;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
@@ -125,7 +126,8 @@ class UpdateProductServiceTest {
         // GIVEN
         Product oldProduct = existingProductOf(KARIM, "streetwear");
         UpdateProductCommand command = UpdateProductCommand.builder().sellerId(KARIM).productId(oldProduct.getId())
-                .name("Air Max 90 OG").brand("Nike").category("streetwear").description("Réédition").build();
+                .name("Air Max 90 OG").brand("Nike").category("streetwear").gender(Gender.UNISEX)
+                .description("Réédition").build();
 
         // WHEN
         Product updated = updateProductService.updateProduct(command);
@@ -190,7 +192,8 @@ class UpdateProductServiceTest {
 
     /** Un produit peut avoir été rangé avant l'arbre, dans une catégorie qui n'y existe pas. */
     private Product existingProductOf(final SellerId sellerId, final String category) {
-        Product product = Product.draft(sellerId, "Air Max 90 Infrared", "Nike", category, "Réédition", Instant.now());
+        Product product = Product.draft(sellerId, "Air Max 90 Infrared", "Nike", category, Gender.UNISEX, "Réédition",
+                Instant.now());
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
         return product;
     }
@@ -198,11 +201,11 @@ class UpdateProductServiceTest {
     private static UpdateProductCommand commandOf(final SellerId sellerId, final ProductId productId,
                                                   final String description) {
         return UpdateProductCommand.builder().sellerId(sellerId).productId(productId).name("Air Max 90 Infrared")
-                .brand("Nike").category("sneakers").description(description).build();
+                .brand("Nike").category("sneakers").gender(Gender.UNISEX).description(description).build();
     }
 
     private static UpdateProductCommand categoryChangeOf(final ProductId productId, final String category) {
         return UpdateProductCommand.builder().sellerId(KARIM).productId(productId).name("Air Max 90 Infrared")
-                .brand("Nike").category(category).description("Réédition").build();
+                .brand("Nike").category(category).gender(Gender.UNISEX).description("Réédition").build();
     }
 }

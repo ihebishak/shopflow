@@ -35,7 +35,7 @@ public class CreateProductService implements CreateProductUseCase {
     public Product createProduct(final CreateProductCommand command) {
         requireExistingCategory(command.getCategory().strip());
         Product product = Product.draft(command.getSellerId(), command.getName(), command.getBrand(),
-                command.getCategory(), command.getDescription(), clock.instant());
+                command.getCategory(), command.getGender(), command.getDescription(), clock.instant());
         productRepository.save(product);
         productEventPublisher.publishProductCreated(product);
         return product;

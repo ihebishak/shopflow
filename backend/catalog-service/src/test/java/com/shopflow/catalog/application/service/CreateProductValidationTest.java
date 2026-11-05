@@ -7,6 +7,7 @@ import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.application.spi.ProductRepository;
 import com.shopflow.catalog.domain.Category;
 import com.shopflow.catalog.domain.CategorySlug;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.SellerId;
 import jakarta.validation.ConstraintViolation;
@@ -87,7 +88,7 @@ class CreateProductValidationTest {
 
     private static CreateProductCommand airMaxCommand(final String name) {
         return CreateProductCommand.builder().sellerId(new SellerId("seller-karim")).name(name).brand("Nike")
-                .category("sneakers").build();
+                .category("sneakers").gender(Gender.UNISEX).build();
     }
 
     @Configuration

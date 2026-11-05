@@ -25,6 +25,10 @@ public interface ProductResponseDtoDocumentation {
     @Schema(example = "sneakers")
     String getCategory();
 
+    @Schema(description = "À qui s'adresse le produit ; null pour un produit enregistré avant l'arrivée de ce champ.",
+            allowableValues = {"MEN", "WOMEN", "UNISEX", "KIDS"}, example = "UNISEX")
+    String getGender();
+
     @Schema(description = "null s'il n'y en a pas.", example = "La réédition du modèle de 1990")
     String getDescription();
 

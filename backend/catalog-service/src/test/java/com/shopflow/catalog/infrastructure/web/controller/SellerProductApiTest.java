@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.shopflow.catalog.application.spi.CategoryRepository;
 import com.shopflow.catalog.domain.Category;
 import com.shopflow.catalog.domain.CategorySlug;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.ChangeVariantPriceRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
@@ -84,6 +85,7 @@ class SellerProductApiTest {
         assertThat(product.getStatus()).isEqualTo("DRAFT");
         assertThat(product.getSellerId()).isEqualTo("seller-karim");
         assertThat(product.getName()).isEqualTo("Air Max 90 Infrared");
+        assertThat(product.getGender()).isEqualTo("UNISEX");
         assertThat(product.getDescription()).isEqualTo("La réédition du modèle de 1990");
         assertThat(product.getCreatedAt()).isNotNull();
         assertThat(product.getVariants()).isEmpty();
@@ -137,7 +139,7 @@ class SellerProductApiTest {
     void shouldReturn400WhenNameIsBlank() {
         // GIVEN
         CreateProductRequestDto requestDto = CreateProductRequestDto.builder()
-                .name(" ").brand("Nike").category("sneakers").build();
+                .name(" ").brand("Nike").category("sneakers").gender(Gender.UNISEX).build();
 
         // WHEN
         ResponseEntity<JsonNode> response = restTemplate.exchange(PRODUCTS, HttpMethod.POST,
@@ -154,7 +156,7 @@ class SellerProductApiTest {
     void shouldReturn404WhenProductIsCreatedInUnknownCategory() {
         // GIVEN
         CreateProductRequestDto requestDto = CreateProductRequestDto.builder()
-                .name("Air Max 90 Infrared").brand("Nike").category("snekers").build();
+                .name("Air Max 90 Infrared").brand("Nike").category("snekers").gender(Gender.UNISEX).build();
 
         // WHEN
         ResponseEntity<JsonNode> response = restTemplate.exchange(PRODUCTS, HttpMethod.POST,
@@ -170,7 +172,7 @@ class SellerProductApiTest {
     void shouldReturn400WhenProductCategoryIsBadlyFormed() {
         // GIVEN
         CreateProductRequestDto requestDto = CreateProductRequestDto.builder()
-                .name("Air Max 90 Infrared").brand("Nike").category("Sneakers").build();
+                .name("Air Max 90 Infrared").brand("Nike").category("Sneakers").gender(Gender.UNISEX).build();
 
         // WHEN
         ResponseEntity<JsonNode> response = restTemplate.exchange(PRODUCTS, HttpMethod.POST,
@@ -257,7 +259,7 @@ class SellerProductApiTest {
         // WHEN
         ResponseEntity<ProductResponseDto> updated = updateProduct(product, "seller-karim", ProductResponseDto.class,
                 UpdateProductRequestDto.builder().name("Stan Smith").brand("Adidas").category("tennis")
-                        .description("Le classique du court").build());
+                        .gender(Gender.WOMEN).description("Le classique du court").build());
 
         // THEN
         assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -266,6 +268,7 @@ class SellerProductApiTest {
         assertThat(body.getName()).isEqualTo("Stan Smith");
         assertThat(body.getBrand()).isEqualTo("Adidas");
         assertThat(body.getCategory()).isEqualTo("tennis");
+        assertThat(body.getGender()).isEqualTo("WOMEN");
         assertThat(body.getDescription()).isEqualTo("Le classique du court");
         assertThat(body.getId()).isEqualTo(airMax.getId());
         assertThat(body.getSellerId()).isEqualTo(airMax.getSellerId());
@@ -756,7 +759,7 @@ class SellerProductApiTest {
 
     private static UpdateProductRequestDto.UpdateProductRequestDtoBuilder airMaxUpdate() {
         return UpdateProductRequestDto.builder().name("Air Max 90 Infrared").brand("Nike").category("sneakers")
-                .description("La réédition du modèle de 1990");
+                .gender(Gender.UNISEX).description("La réédition du modèle de 1990");
     }
 
     private <T> ResponseEntity<T> addVariant(final URI product, final String sellerId, final String size,
@@ -778,7 +781,7 @@ class SellerProductApiTest {
 
     private ResponseEntity<ProductResponseDto> createAirMax(final String sellerId) {
         CreateProductRequestDto requestDto = CreateProductRequestDto.builder()
-                .name("Air Max 90 Infrared").brand("Nike").category("sneakers")
+                .name("Air Max 90 Infrared").brand("Nike").category("sneakers").gender(Gender.UNISEX)
                 .description("La réédition du modèle de 1990").build();
         return restTemplate.exchange(PRODUCTS, HttpMethod.POST, new HttpEntity<>(requestDto, sellerHeader(sellerId)),
                 ProductResponseDto.class);

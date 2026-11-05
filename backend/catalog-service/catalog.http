@@ -12,6 +12,7 @@ Content-Type: application/json
   "name": "Air Max 90 Infrared",
   "brand": "Nike",
   "category": "sneakers",
+  "gender": "UNISEX",
   "description": "La réédition du modèle de 1990"
 }
 
@@ -47,7 +48,8 @@ Content-Type: application/json
 {
   "name": " ",
   "brand": "Nike",
-  "category": "sneakers"
+  "category": "sneakers",
+  "gender": "UNISEX"
 }
 
 ### Catégorie inconnue (404 CATEGORY_NOT_FOUND)
@@ -58,7 +60,8 @@ Content-Type: application/json
 {
   "name": "Air Max 90 Infrared",
   "brand": "Nike",
-  "category": "snekers"
+  "category": "snekers",
+  "gender": "UNISEX"
 }
 
 ### Catégorie mal formée, avec une majuscule (400 INVALID_CATEGORY_SLUG)
@@ -69,7 +72,31 @@ Content-Type: application/json
 {
   "name": "Air Max 90 Infrared",
   "brand": "Nike",
-  "category": "Sneakers"
+  "category": "Sneakers",
+  "gender": "UNISEX"
+}
+
+### Genre manquant (400 VALIDATION_FAILED, champ gender)
+POST http://localhost:8101/api/v1/seller/products
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": "Air Max 90 Infrared",
+  "brand": "Nike",
+  "category": "sneakers"
+}
+
+### Genre inconnu (400 MALFORMED_REQUEST) : MEN, WOMEN, UNISEX ou KIDS
+POST http://localhost:8101/api/v1/seller/products
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": "Air Max 90 Infrared",
+  "brand": "Nike",
+  "category": "sneakers",
+  "gender": "HOMME"
 }
 
 ### Ajouter une variante (201, avec son SKU généré par le serveur). Le prix est en centimes : 16000 = 160,00 €
@@ -151,6 +178,7 @@ Content-Type: application/json
   "name": "Air Max 90 Infrared OG",
   "brand": "Nike",
   "category": "sneakers",
+  "gender": "UNISEX",
   "description": "La réédition fidèle du modèle de 1990"
 }
 
@@ -163,6 +191,7 @@ Content-Type: application/json
   "name": "Air Max 90 Infrared OG",
   "brand": "Nike",
   "category": "sneakers",
+  "gender": "UNISEX",
   "description": "La réédition fidèle du modèle de 1990"
 }
 
@@ -174,7 +203,8 @@ Content-Type: application/json
 {
   "name": "Air Max 90 Infrared OG",
   "brand": "Nike",
-  "category": "sneakers"
+  "category": "sneakers",
+  "gender": "UNISEX"
 }
 
 ### Un autre vendeur ne peut pas le modifier (404 PRODUCT_NOT_FOUND)
@@ -185,7 +215,8 @@ Content-Type: application/json
 {
   "name": "Air Max piratée",
   "brand": "Nike",
-  "category": "sneakers"
+  "category": "sneakers",
+  "gender": "UNISEX"
 }
 
 ### Modification invalide, nom vide (400 VALIDATION_FAILED, avec le champ dans errors[])
@@ -196,7 +227,8 @@ Content-Type: application/json
 {
   "name": " ",
   "brand": "Nike",
-  "category": "sneakers"
+  "category": "sneakers",
+  "gender": "UNISEX"
 }
 
 ### Changer le prix de la variante (200) : 12900 = 129,00 €
@@ -264,7 +296,8 @@ Content-Type: application/json
 {
   "name": "Air Force 1",
   "brand": "Nike",
-  "category": "sneakers"
+  "category": "sneakers",
+  "gender": "UNISEX"
 }
 
 > {%

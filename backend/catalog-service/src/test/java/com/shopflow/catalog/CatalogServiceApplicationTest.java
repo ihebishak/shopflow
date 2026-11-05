@@ -98,7 +98,7 @@ class CatalogServiceApplicationTest {
         assertThat(request.at("/properties/name/example").asText()).isEqualTo("Air Max 90 Infrared");
         assertThat(request.at("/properties/name/maxLength").asInt()).as("Bean Validation du DTO").isEqualTo(120);
         assertThat(request.get("required")).extracting(JsonNode::asText)
-                .containsExactlyInAnyOrder("name", "brand", "category");
+                .containsExactlyInAnyOrder("name", "brand", "category", "gender");
         JsonNode response = schemas.get("VariantResponseDto");
         assertThat(response.at("/properties/size/description").asText()).isEqualTo("Taille.");
         assertThat(response.at("/properties/price/description").asText()).isEqualTo("Prix de la variante.");

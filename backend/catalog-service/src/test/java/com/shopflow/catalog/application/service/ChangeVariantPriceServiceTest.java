@@ -3,6 +3,7 @@ package com.shopflow.catalog.application.service;
 import com.shopflow.catalog.application.api.command.ChangeVariantPriceCommand;
 import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.application.spi.ProductRepository;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
@@ -153,7 +154,8 @@ class ChangeVariantPriceServiceTest {
     }
 
     private Product existingProductOf(final SellerId sellerId, final Variant variant) {
-        Product product = Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now())
+        Product product = Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null,
+                Instant.now())
                 .addVariant(variant);
         when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
         return product;

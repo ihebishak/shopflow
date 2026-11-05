@@ -3,6 +3,7 @@ package com.shopflow.catalog.infrastructure.mongo.repository;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.shopflow.catalog.domain.DuplicateVariantException;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
@@ -76,7 +77,7 @@ class MongoProductRepositoryTest {
     @DisplayName("SHOULD read back exactly the same product WHEN it has been saved")
     void shouldReadBackSameProductWhenSaved() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers",
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX,
                 "La réédition du modèle de 1990", Instant.now());
 
         // WHEN
@@ -92,7 +93,8 @@ class MongoProductRepositoryTest {
     void shouldStoreReadableDocumentWhenProductIsSaved() {
         // GIVEN
         Instant createdAt = Instant.parse("2026-10-31T10:00:00Z");
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, createdAt);
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null,
+                createdAt);
 
         // WHEN
         mongoProductRepository.save(airMax);
@@ -105,6 +107,7 @@ class MongoProductRepositoryTest {
                 .containsEntry("name", "Air Max 90 Infrared")
                 .containsEntry("brand", "Nike")
                 .containsEntry("category", "sneakers")
+                .containsEntry("gender", "UNISEX")
                 .containsEntry("status", "DRAFT")
                 .containsEntry("createdAt", Date.from(createdAt))
                 .doesNotContainKey("description");
@@ -457,10 +460,10 @@ class MongoProductRepositoryTest {
     }
 
     private static Product draftNamed(final SellerId sellerId, final String name, final Instant createdAt) {
-        return Product.draft(sellerId, name, "Nike", "sneakers", null, createdAt);
+        return Product.draft(sellerId, name, "Nike", "sneakers", Gender.UNISEX, null, createdAt);
     }
 
     private static Product draftAirMax() {
-        return Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
+        return Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null, Instant.now());
     }
 }

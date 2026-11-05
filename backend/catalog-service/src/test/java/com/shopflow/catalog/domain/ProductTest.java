@@ -36,7 +36,7 @@ class ProductTest {
         String description = "  La réédition du modèle de 1990  ";
 
         // WHEN
-        Product product = Product.draft(KARIM, name, " Nike", "sneakers ", description, NOW);
+        Product product = Product.draft(KARIM, name, " Nike", "sneakers ", Gender.UNISEX, description, NOW);
 
         // THEN
         assertThat(product.getStatus()).isEqualTo(ProductStatus.DRAFT);
@@ -44,6 +44,7 @@ class ProductTest {
         assertThat(product.getName()).isEqualTo("Air Max 90 Infrared");
         assertThat(product.getBrand()).isEqualTo("Nike");
         assertThat(product.getCategory()).isEqualTo("sneakers");
+        assertThat(product.getGender()).contains(Gender.UNISEX);
         assertThat(product.getDescription()).contains("La réédition du modèle de 1990");
         assertThat(product.getCreatedAt()).isEqualTo(NOW);
         assertThat(product.getVersion()).isNull();
@@ -58,7 +59,7 @@ class ProductTest {
         Instant preciseNow = Instant.parse("2026-10-31T10:00:00.123456789Z");
 
         // WHEN
-        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", null, preciseNow);
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", Gender.UNISEX, null, preciseNow);
 
         // THEN
         assertThat(product.getCreatedAt()).isEqualTo(Instant.parse("2026-10-31T10:00:00.123Z"));
@@ -81,7 +82,7 @@ class ProductTest {
     @DisplayName("SHOULD have no description WHEN the description is missing or blank")
     void shouldHaveNoDescriptionWhenDescriptionIsMissingOrBlank(final String description) {
         // WHEN
-        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", description, NOW);
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", Gender.UNISEX, description, NOW);
 
         // THEN
         assertThat(product.getDescription()).isEmpty();
@@ -204,8 +205,8 @@ class ProductTest {
     void shouldKeepVariantsWhenListGivenToRestoreIsModified() {
         // GIVEN
         List<Variant> variants = new ArrayList<>(List.of(Variant.restore(Sku.newSku(), "42", "Rouge", PRICE)));
-        Product product = Product.restore(ProductId.newId(), KARIM, "Air Max 90", "Nike", "sneakers", null,
-                ProductStatus.DRAFT, NOW, variants, 0L);
+        Product product = Product.restore(ProductId.newId(), KARIM, "Air Max 90", "Nike", "sneakers", Gender.UNISEX,
+                null, ProductStatus.DRAFT, NOW, variants, 0L);
 
         // WHEN
         variants.clear();
@@ -251,7 +252,7 @@ class ProductTest {
         Product product = airMax();
 
         // WHEN
-        Product updated = product.update("Air Max 90", "Nike", "sneakers", "La réédition de 1990");
+        Product updated = product.update("Air Max 90", "Nike", "sneakers", Gender.UNISEX, "La réédition de 1990");
 
         // THEN
         assertThat(updated.changedFieldsSince(product)).containsExactly("description");
@@ -268,13 +269,15 @@ class ProductTest {
         Product product = airMax();
 
         // WHEN
-        Product updated = product.update("Stan Smith", "Adidas", "tennis", "Un classique");
+        Product updated = product.update("Stan Smith", "Adidas", "tennis", Gender.WOMEN, "Un classique");
 
         // THEN
-        assertThat(updated.changedFieldsSince(product)).containsExactly("name", "brand", "category", "description");
+        assertThat(updated.changedFieldsSince(product))
+                .containsExactly("name", "brand", "category", "gender", "description");
         assertThat(updated.getName()).isEqualTo("Stan Smith");
         assertThat(updated.getBrand()).isEqualTo("Adidas");
         assertThat(updated.getCategory()).isEqualTo("tennis");
+        assertThat(updated.getGender()).contains(Gender.WOMEN);
         assertThat(updated.getDescription()).contains("Un classique");
     }
 
@@ -288,23 +291,52 @@ class ProductTest {
     void shouldReportOnlyChangedFieldWhenOneFieldDiffers(final String name, final String brand, final String category,
                                                          final String description, final String changedField) {
         // GIVEN
-        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", "Réédition", NOW);
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", Gender.UNISEX, "Réédition", NOW);
 
         // WHEN
-        Product updated = product.update(name, brand, category, description);
+        Product updated = product.update(name, brand, category, Gender.UNISEX, description);
 
         // THEN
         assertThat(updated.changedFieldsSince(product)).containsExactly(changedField);
     }
 
     @Test
+    @DisplayName("SHOULD change only the gender and report it WHEN only the gender differs")
+    void shouldReportGenderWhenOnlyGenderDiffers() {
+        // GIVEN
+        Product product = airMax();
+
+        // WHEN
+        Product updated = product.update("Air Max 90", "Nike", "sneakers", Gender.WOMEN, null);
+
+        // THEN
+        assertThat(updated.changedFieldsSince(product)).containsExactly("gender");
+        assertThat(updated.getGender()).contains(Gender.WOMEN);
+    }
+
+    @Test
+    @DisplayName("SHOULD have no gender then report it once given WHEN the product was saved before the gender existed")
+    void shouldReportGenderWhenProductSavedBeforeGenderExistedGetsOne() {
+        // GIVEN
+        Product oldProduct = Product.restore(ProductId.newId(), KARIM, "Air Max 90", "Nike", "sneakers", null, null,
+                ProductStatus.DRAFT, NOW, List.of(), 0L);
+
+        // WHEN
+        Product updated = oldProduct.update("Air Max 90", "Nike", "sneakers", Gender.UNISEX, null);
+
+        // THEN
+        assertThat(oldProduct.getGender()).isEmpty();
+        assertThat(updated.changedFieldsSince(oldProduct)).containsExactly("gender");
+    }
+
+    @Test
     @DisplayName("SHOULD report nothing WHEN nothing differs")
     void shouldReportNothingWhenNothingDiffers() {
         // GIVEN
-        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", "Réédition", NOW);
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", Gender.UNISEX, "Réédition", NOW);
 
         // WHEN
-        Product updated = product.update("Air Max 90", "Nike", "sneakers", "Réédition");
+        Product updated = product.update("Air Max 90", "Nike", "sneakers", Gender.UNISEX, "Réédition");
 
         // THEN
         assertThat(updated.changedFieldsSince(product)).isEmpty();
@@ -314,10 +346,10 @@ class ProductTest {
     @DisplayName("SHOULD strip the fields and report nothing WHEN only surrounding spaces differ")
     void shouldReportNothingWhenOnlySurroundingSpacesDiffer() {
         // GIVEN
-        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", "Réédition", NOW);
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", Gender.UNISEX, "Réédition", NOW);
 
         // WHEN
-        Product updated = product.update("  Air Max 90 ", " Nike", "sneakers ", "  Réédition  ");
+        Product updated = product.update("  Air Max 90 ", " Nike", "sneakers ", Gender.UNISEX, "  Réédition  ");
 
         // THEN
         assertThat(updated.changedFieldsSince(product)).isEmpty();
@@ -333,10 +365,10 @@ class ProductTest {
     @DisplayName("SHOULD erase the description and report it WHEN the new description is missing or blank")
     void shouldEraseDescriptionWhenNewDescriptionIsMissingOrBlank(final String description) {
         // GIVEN
-        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", "Réédition", NOW);
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", Gender.UNISEX, "Réédition", NOW);
 
         // WHEN
-        Product updated = product.update("Air Max 90", "Nike", "sneakers", description);
+        Product updated = product.update("Air Max 90", "Nike", "sneakers", Gender.UNISEX, description);
 
         // THEN
         assertThat(updated.changedFieldsSince(product)).containsExactly("description");
@@ -350,7 +382,7 @@ class ProductTest {
         Product product = airMax();
 
         // WHEN
-        Product updated = product.update("Air Max 90", "Nike", "sneakers", "  ");
+        Product updated = product.update("Air Max 90", "Nike", "sneakers", Gender.UNISEX, "  ");
 
         // THEN
         assertThat(updated.changedFieldsSince(product)).isEmpty();
@@ -364,7 +396,7 @@ class ProductTest {
         Product product = restoredWith(variant);
 
         // WHEN
-        Product updated = product.update("Stan Smith", "Adidas", "tennis", "Un classique");
+        Product updated = product.update("Stan Smith", "Adidas", "tennis", Gender.UNISEX, "Un classique");
 
         // THEN
         assertThat(updated.getId()).isEqualTo(product.getId());
@@ -379,10 +411,10 @@ class ProductTest {
     @DisplayName("SHOULD leave the original untouched WHEN the product is updated")
     void shouldLeaveOriginalUntouchedWhenProductIsUpdated() {
         // GIVEN
-        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", "Réédition", NOW);
+        Product product = Product.draft(KARIM, "Air Max 90", "Nike", "sneakers", Gender.UNISEX, "Réédition", NOW);
 
         // WHEN
-        product.update("Stan Smith", "Adidas", "tennis", "Un classique");
+        product.update("Stan Smith", "Adidas", "tennis", Gender.UNISEX, "Un classique");
 
         // THEN
         assertThat(product.getName()).isEqualTo("Air Max 90");
@@ -655,11 +687,11 @@ class ProductTest {
     }
 
     private static Product restoredWith(final ProductStatus status, final Variant... variants) {
-        return Product.restore(ProductId.newId(), KARIM, "Air Max 90", "Nike", "sneakers", null, status, NOW,
-                List.of(variants), 0L);
+        return Product.restore(ProductId.newId(), KARIM, "Air Max 90", "Nike", "sneakers", Gender.UNISEX, null, status,
+                NOW, List.of(variants), 0L);
     }
 
     private static Product draftNamed(final String name) {
-        return Product.draft(KARIM, name, "Nike", "sneakers", null, NOW);
+        return Product.draft(KARIM, name, "Nike", "sneakers", Gender.UNISEX, null, NOW);
     }
 }

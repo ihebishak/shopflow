@@ -9,6 +9,7 @@
     { "name": "name", "type": "string" },
     { "name": "brand", "type": "string" },
     { "name": "category", "type": "string" },
+    { "name": "gender", "type": ["null", "com.shopflow.contracts.product.ProductGender"], "default": null },
     { "name": "variants", "type": { "type": "array", "items": "com.shopflow.contracts.product.ProductVariant" } }
   ]
 }

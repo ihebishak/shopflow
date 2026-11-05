@@ -38,7 +38,7 @@ public class UpdateProductService implements UpdateProductUseCase {
     public Product updateProduct(final UpdateProductCommand command) {
         Product product = getSellerProductUseCase.getSellerProduct(command.getSellerId(), command.getProductId());
         Product updated = product.update(command.getName(), command.getBrand(), command.getCategory(),
-                command.getDescription());
+                command.getGender(), command.getDescription());
         List<String> changedFields = updated.changedFieldsSince(product);
         if (changedFields.isEmpty()) {
             return product;

@@ -32,6 +32,8 @@ public class ProductResponseDto implements ProductResponseDtoDocumentation {
 
     private final String category;
 
+    private final String gender;
+
     private final String description;
 
     private final String status;

@@ -63,6 +63,7 @@ class ProductEventsSerializationTest {
                         .setName("Air Max 90 Infrared")
                         .setBrand("Nike")
                         .setCategory("sneakers")
+                        .setGender(ProductGender.UNISEX)
                         .setVariants(List.of(variant42))
                         .build(),
                 ProductVariantAdded.newBuilder()

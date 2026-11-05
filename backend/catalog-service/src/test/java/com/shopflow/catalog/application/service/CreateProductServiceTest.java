@@ -5,6 +5,7 @@ import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.domain.Category;
 import com.shopflow.catalog.domain.CategoryNotFoundException;
 import com.shopflow.catalog.domain.CategorySlug;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.InvalidCategorySlugException;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
@@ -109,12 +110,13 @@ class CreateProductServiceTest {
     }
 
     private static CreateProductCommand airMaxCommand(final String name) {
-        return CreateProductCommand.builder().sellerId(KARIM).name(name).brand("Nike").category("sneakers").build();
+        return CreateProductCommand.builder().sellerId(KARIM).name(name).brand("Nike").category("sneakers")
+                .gender(Gender.UNISEX).build();
     }
 
     private static CreateProductCommand airMaxCommandIn(final String category) {
         return CreateProductCommand.builder().sellerId(KARIM).name("Air Max 90 Infrared").brand("Nike")
-                .category(category).build();
+                .category(category).gender(Gender.UNISEX).build();
     }
 
     /** Faux publieur : retient les produits annoncés. */

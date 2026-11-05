@@ -3,6 +3,7 @@ package com.shopflow.catalog.application.service;
 import com.shopflow.catalog.application.api.command.UnpublishProductCommand;
 import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.application.spi.ProductRepository;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
@@ -143,7 +144,7 @@ class UnpublishProductServiceTest {
     }
 
     private static Product draftWithVariant(final SellerId sellerId) {
-        return Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now())
+        return Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null, Instant.now())
                 .addVariant(Variant.create("42", "Rouge", Money.euros(16_000)));
     }
 

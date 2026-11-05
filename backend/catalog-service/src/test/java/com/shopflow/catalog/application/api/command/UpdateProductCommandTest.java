@@ -1,5 +1,6 @@
 package com.shopflow.catalog.application.api.command;
 
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
 import jakarta.validation.ConstraintViolation;
@@ -129,6 +130,16 @@ class UpdateProductCommandTest {
     }
 
     @Test
+    @DisplayName("SHOULD refuse the command WHEN the gender is missing")
+    void shouldRefuseCommandWhenGenderIsMissing() {
+        // WHEN
+        List<String> errors = errorsOf(airMax().gender(null).build());
+
+        // THEN
+        assertThat(errors).containsExactly("gender is required");
+    }
+
+    @Test
     @DisplayName("SHOULD refuse the command WHEN the description is longer than 2000 characters")
     void shouldRefuseCommandWhenDescriptionIsLongerThan2000Characters() {
         // WHEN
@@ -140,7 +151,7 @@ class UpdateProductCommandTest {
 
     private static UpdateProductCommand.UpdateProductCommandBuilder airMax() {
         return UpdateProductCommand.builder().sellerId(new SellerId("seller-karim")).productId(ProductId.newId())
-                .name("Air Max 90 Infrared").brand("Nike").category("sneakers");
+                .name("Air Max 90 Infrared").brand("Nike").category("sneakers").gender(Gender.UNISEX);
     }
 
     private static List<String> errorsOf(final UpdateProductCommand command) {
