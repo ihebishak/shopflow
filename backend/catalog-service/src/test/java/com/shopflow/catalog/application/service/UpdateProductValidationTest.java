@@ -2,8 +2,10 @@ package com.shopflow.catalog.application.service;
 
 import com.shopflow.catalog.application.api.UpdateProductUseCase;
 import com.shopflow.catalog.application.api.command.UpdateProductCommand;
+import com.shopflow.catalog.application.spi.CategoryRepository;
 import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.application.spi.ProductRepository;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
@@ -45,6 +47,9 @@ class UpdateProductValidationTest {
     private ProductRepository productRepository;
 
     @MockitoBean
+    private CategoryRepository categoryRepository;
+
+    @MockitoBean
     private ProductEventPublisher productEventPublisher;
 
     @Test
@@ -61,14 +66,15 @@ class UpdateProductValidationTest {
         assertThat(((ConstraintViolationException) error).getConstraintViolations())
                 .extracting(ConstraintViolation::getMessage)
                 .containsExactly("name is required");
-        verifyNoInteractions(productRepository, productEventPublisher);
+        verifyNoInteractions(productRepository, categoryRepository, productEventPublisher);
     }
 
     @Test
     @DisplayName("SHOULD run the use case WHEN the command is valid")
     void shouldRunUseCaseWhenCommandIsValid() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null,
+                Instant.now());
         when(productRepository.findById(airMax.getId())).thenReturn(Optional.of(airMax));
 
         // WHEN
@@ -80,7 +86,7 @@ class UpdateProductValidationTest {
 
     private static UpdateProductCommand commandNamed(final ProductId productId, final String name) {
         return UpdateProductCommand.builder().sellerId(KARIM).productId(productId).name(name).brand("Nike")
-                .category("sneakers").build();
+                .category("sneakers").gender(Gender.UNISEX).build();
     }
 
     @Configuration

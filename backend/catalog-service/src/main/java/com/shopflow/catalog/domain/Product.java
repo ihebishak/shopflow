@@ -38,6 +38,13 @@ public final class Product {
     private final String brand;
     private final String category;
 
+    /**
+     * Toujours renseigné à la création ; absent des produits enregistrés avant son arrivée, d'où l'{@link Optional}
+     * de {@link #getGender()}.
+     */
+    @Getter(AccessLevel.NONE)
+    private final Gender gender;
+
     /** Facultative : exposée par {@link #getDescription()} sous forme d'{@link Optional}. */
     @Getter(AccessLevel.NONE)
     private final String description;
@@ -59,13 +66,14 @@ public final class Product {
      *                    conservée à la milliseconde comme dans MongoDB
      */
     public static Product draft(final SellerId sellerId, final String name, final String brand, final String category,
-                                final String description, final Instant now) {
+                                final Gender gender, final String description, final Instant now) {
         return Product.builder()
                 .id(ProductId.newId())
                 .sellerId(sellerId)
                 .name(name.strip())
                 .brand(brand.strip())
                 .category(category.strip())
+                .gender(Objects.requireNonNull(gender, "gender"))
                 .description(blankToNull(description))
                 .status(ProductStatus.DRAFT)
                 .createdAt(now.truncatedTo(ChronoUnit.MILLIS))
@@ -76,18 +84,21 @@ public final class Product {
     /**
      * Reconstruit un produit enregistré. Les règles ne sont pas revérifiées : elles l'ont été à sa création.
      *
+     * @param gender      {@code null} pour un produit enregistré avant l'arrivée du genre
      * @param description {@code null} s'il n'y en a pas
      * @param version     numéro de l'enregistrement lu
      */
     public static Product restore(final ProductId id, final SellerId sellerId, final String name, final String brand,
-                                  final String category, final String description, final ProductStatus status,
-                                  final Instant createdAt, final List<Variant> variants, final Long version) {
+                                  final String category, final Gender gender, final String description,
+                                  final ProductStatus status, final Instant createdAt, final List<Variant> variants,
+                                  final Long version) {
         return Product.builder()
                 .id(Objects.requireNonNull(id, "id"))
                 .sellerId(Objects.requireNonNull(sellerId, "sellerId"))
                 .name(Objects.requireNonNull(name, "name"))
                 .brand(Objects.requireNonNull(brand, "brand"))
                 .category(Objects.requireNonNull(category, "category"))
+                .gender(gender)
                 .description(description)
                 .status(Objects.requireNonNull(status, "status"))
                 .createdAt(Objects.requireNonNull(createdAt, "createdAt"))
@@ -139,9 +150,10 @@ public final class Product {
      * @param description facultative : l'omettre l'efface
      * @return le produit avec ces informations
      */
-    public Product update(final String name, final String brand, final String category, final String description) {
+    public Product update(final String name, final String brand, final String category, final Gender gender,
+                          final String description) {
         return toBuilder().name(name.strip()).brand(brand.strip()).category(category.strip())
-                .description(blankToNull(description)).build();
+                .gender(Objects.requireNonNull(gender, "gender")).description(blankToNull(description)).build();
     }
 
     /**
@@ -153,6 +165,7 @@ public final class Product {
         addIfChanged(changedFields, "name", before.name, name);
         addIfChanged(changedFields, "brand", before.brand, brand);
         addIfChanged(changedFields, "category", before.category, category);
+        addIfChanged(changedFields, "gender", before.gender, gender);
         addIfChanged(changedFields, "description", before.description, description);
         return List.copyOf(changedFields);
     }
@@ -189,12 +202,16 @@ public final class Product {
         return toBuilder().status(ProductStatus.UNPUBLISHED).build();
     }
 
+    public Optional<Gender> getGender() {
+        return Optional.ofNullable(gender);
+    }
+
     public Optional<String> getDescription() {
         return Optional.ofNullable(description);
     }
 
-    private static void addIfChanged(final List<String> changedFields, final String field, final String oldValue,
-                                     final String newValue) {
+    private static void addIfChanged(final List<String> changedFields, final String field, final Object oldValue,
+                                     final Object newValue) {
         if (!Objects.equals(oldValue, newValue)) {
             changedFields.add(field);
         }

@@ -4,6 +4,7 @@ import com.shopflow.catalog.application.api.UnpublishProductUseCase;
 import com.shopflow.catalog.application.api.command.UnpublishProductCommand;
 import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.application.spi.ProductRepository;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.SellerId;
 import com.shopflow.catalog.domain.Variant;
@@ -69,7 +70,8 @@ class UnpublishProductValidationTest {
     @DisplayName("SHOULD run the use case WHEN the command is valid")
     void shouldRunUseCaseWhenCommandIsValid() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now())
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null,
+                Instant.now())
                 .addVariant(Variant.create("42", "Rouge", Money.euros(16_000))).publish();
         when(productRepository.findById(airMax.getId())).thenReturn(Optional.of(airMax));
 

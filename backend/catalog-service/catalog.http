@@ -1,5 +1,7 @@
 # Requêtes à lancer depuis IntelliJ (bouton ▶ à gauche de chaque requête), service démarré sur le port 8101.
 # Le vendeur est identifié par l'en-tête X-Seller-Id, en attendant Keycloak (phase 2).
+# Un produit doit être rangé dans une catégorie existante : lancer d'abord les requêtes « catégorie » plus bas
+# (elles créent chaussures et sneakers).
 
 ### Créer une Air Max (naît en brouillon)
 POST http://localhost:8101/api/v1/seller/products
@@ -10,6 +12,7 @@ Content-Type: application/json
   "name": "Air Max 90 Infrared",
   "brand": "Nike",
   "category": "sneakers",
+  "gender": "UNISEX",
   "description": "La réédition du modèle de 1990"
 }
 
@@ -45,7 +48,55 @@ Content-Type: application/json
 {
   "name": " ",
   "brand": "Nike",
+  "category": "sneakers",
+  "gender": "UNISEX"
+}
+
+### Catégorie inconnue (404 CATEGORY_NOT_FOUND)
+POST http://localhost:8101/api/v1/seller/products
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": "Air Max 90 Infrared",
+  "brand": "Nike",
+  "category": "snekers",
+  "gender": "UNISEX"
+}
+
+### Catégorie mal formée, avec une majuscule (400 INVALID_CATEGORY_SLUG)
+POST http://localhost:8101/api/v1/seller/products
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": "Air Max 90 Infrared",
+  "brand": "Nike",
+  "category": "Sneakers",
+  "gender": "UNISEX"
+}
+
+### Genre manquant (400 VALIDATION_FAILED, champ gender)
+POST http://localhost:8101/api/v1/seller/products
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": "Air Max 90 Infrared",
+  "brand": "Nike",
   "category": "sneakers"
+}
+
+### Genre inconnu (400 MALFORMED_REQUEST) : MEN, WOMEN, UNISEX ou KIDS
+POST http://localhost:8101/api/v1/seller/products
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": "Air Max 90 Infrared",
+  "brand": "Nike",
+  "category": "sneakers",
+  "gender": "HOMME"
 }
 
 ### Ajouter une variante (201, avec son SKU généré par le serveur). Le prix est en centimes : 16000 = 160,00 €
@@ -127,6 +178,7 @@ Content-Type: application/json
   "name": "Air Max 90 Infrared OG",
   "brand": "Nike",
   "category": "sneakers",
+  "gender": "UNISEX",
   "description": "La réédition fidèle du modèle de 1990"
 }
 
@@ -139,6 +191,7 @@ Content-Type: application/json
   "name": "Air Max 90 Infrared OG",
   "brand": "Nike",
   "category": "sneakers",
+  "gender": "UNISEX",
   "description": "La réédition fidèle du modèle de 1990"
 }
 
@@ -150,7 +203,8 @@ Content-Type: application/json
 {
   "name": "Air Max 90 Infrared OG",
   "brand": "Nike",
-  "category": "sneakers"
+  "category": "sneakers",
+  "gender": "UNISEX"
 }
 
 ### Un autre vendeur ne peut pas le modifier (404 PRODUCT_NOT_FOUND)
@@ -161,7 +215,8 @@ Content-Type: application/json
 {
   "name": "Air Max piratée",
   "brand": "Nike",
-  "category": "sneakers"
+  "category": "sneakers",
+  "gender": "UNISEX"
 }
 
 ### Modification invalide, nom vide (400 VALIDATION_FAILED, avec le champ dans errors[])
@@ -172,7 +227,8 @@ Content-Type: application/json
 {
   "name": " ",
   "brand": "Nike",
-  "category": "sneakers"
+  "category": "sneakers",
+  "gender": "UNISEX"
 }
 
 ### Changer le prix de la variante (200) : 12900 = 129,00 €
@@ -240,7 +296,8 @@ Content-Type: application/json
 {
   "name": "Air Force 1",
   "brand": "Nike",
-  "category": "sneakers"
+  "category": "sneakers",
+  "gender": "UNISEX"
 }
 
 > {%
@@ -298,3 +355,81 @@ X-Seller-Id: seller-karim
 ### Statut inconnu (400 INVALID_PARAMETER)
 GET http://localhost:8101/api/v1/seller/products?status=FOO
 X-Seller-Id: seller-karim
+
+### Créer une catégorie de premier niveau (201)
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "chaussures",
+  "name": "Chaussures"
+}
+
+### Créer une sous-catégorie (201, ancestors = [chaussures])
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "sneakers",
+  "name": "Sneakers",
+  "parentSlug": "chaussures"
+}
+
+### Créer une catégorie de troisième niveau (201, ancestors = [chaussures, sneakers])
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "running",
+  "name": "Running",
+  "parentSlug": "sneakers"
+}
+
+### Quatrième niveau (409 CATEGORY_TOO_DEEP)
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "trail",
+  "name": "Trail",
+  "parentSlug": "running"
+}
+
+### Identifiant déjà pris (409 CATEGORY_ALREADY_EXISTS)
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "chaussures",
+  "name": "Souliers"
+}
+
+### Parent inconnu (404 CATEGORY_NOT_FOUND)
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "bottes",
+  "name": "Bottes",
+  "parentSlug": "inconnue"
+}
+
+### Identifiant mal formé (400 INVALID_CATEGORY_SLUG)
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "Sneakers",
+  "name": "Sneakers"
+}
+
+### Nom manquant (400 VALIDATION_FAILED, champ name)
+POST http://localhost:8101/api/v1/admin/categories
+Content-Type: application/json
+
+{
+  "slug": "bottes"
+}
+
+### Lire l'arbre des catégories, sans en-tête (200)
+GET http://localhost:8101/api/v1/categories

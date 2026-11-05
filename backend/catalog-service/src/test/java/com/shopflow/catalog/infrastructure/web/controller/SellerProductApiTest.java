@@ -1,6 +1,10 @@
 package com.shopflow.catalog.infrastructure.web.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.shopflow.catalog.application.spi.CategoryRepository;
+import com.shopflow.catalog.domain.Category;
+import com.shopflow.catalog.domain.CategorySlug;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.ChangeVariantPriceRequestDto;
 import com.shopflow.catalog.infrastructure.web.dto.request.CreateProductRequestDto;
@@ -10,6 +14,7 @@ import com.shopflow.catalog.infrastructure.web.dto.response.MoneyResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductPageResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.ProductResponseDto;
 import com.shopflow.catalog.infrastructure.web.dto.response.VariantResponseDto;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +58,20 @@ class SellerProductApiTest {
     @Autowired
     private TestRestTemplate restTemplate;
 
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    /** Le MongoDB du test est partagé : les catégories utilisées par les produits ne sont créées qu'une fois. */
+    @BeforeEach
+    void createCategories() {
+        for (String category : List.of("sneakers", "tennis")) {
+            CategorySlug slug = new CategorySlug(category);
+            if (categoryRepository.findBySlug(slug).isEmpty()) {
+                categoryRepository.create(Category.root(slug, category));
+            }
+        }
+    }
+
     @Test
     @DisplayName("SHOULD create a draft and return its location WHEN a seller creates a product")
     void shouldCreateDraftWhenSellerCreatesProduct() {
@@ -66,6 +85,7 @@ class SellerProductApiTest {
         assertThat(product.getStatus()).isEqualTo("DRAFT");
         assertThat(product.getSellerId()).isEqualTo("seller-karim");
         assertThat(product.getName()).isEqualTo("Air Max 90 Infrared");
+        assertThat(product.getGender()).isEqualTo("UNISEX");
         assertThat(product.getDescription()).isEqualTo("La réédition du modèle de 1990");
         assertThat(product.getCreatedAt()).isNotNull();
         assertThat(product.getVariants()).isEmpty();
@@ -119,7 +139,7 @@ class SellerProductApiTest {
     void shouldReturn400WhenNameIsBlank() {
         // GIVEN
         CreateProductRequestDto requestDto = CreateProductRequestDto.builder()
-                .name(" ").brand("Nike").category("sneakers").build();
+                .name(" ").brand("Nike").category("sneakers").gender(Gender.UNISEX).build();
 
         // WHEN
         ResponseEntity<JsonNode> response = restTemplate.exchange(PRODUCTS, HttpMethod.POST,
@@ -129,6 +149,38 @@ class SellerProductApiTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().get("code").asText()).isEqualTo("VALIDATION_FAILED");
         assertThat(response.getBody().get("errors").get(0).get("field").asText()).isEqualTo("name");
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 CATEGORY_NOT_FOUND WHEN the product is created in an unknown category")
+    void shouldReturn404WhenProductIsCreatedInUnknownCategory() {
+        // GIVEN
+        CreateProductRequestDto requestDto = CreateProductRequestDto.builder()
+                .name("Air Max 90 Infrared").brand("Nike").category("snekers").gender(Gender.UNISEX).build();
+
+        // WHEN
+        ResponseEntity<JsonNode> response = restTemplate.exchange(PRODUCTS, HttpMethod.POST,
+                new HttpEntity<>(requestDto, sellerHeader("seller-karim")), JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("CATEGORY_NOT_FOUND");
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 INVALID_CATEGORY_SLUG WHEN the product category is badly formed")
+    void shouldReturn400WhenProductCategoryIsBadlyFormed() {
+        // GIVEN
+        CreateProductRequestDto requestDto = CreateProductRequestDto.builder()
+                .name("Air Max 90 Infrared").brand("Nike").category("Sneakers").gender(Gender.UNISEX).build();
+
+        // WHEN
+        ResponseEntity<JsonNode> response = restTemplate.exchange(PRODUCTS, HttpMethod.POST,
+                new HttpEntity<>(requestDto, sellerHeader("seller-karim")), JsonNode.class);
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("INVALID_CATEGORY_SLUG");
     }
 
     @Test
@@ -207,7 +259,7 @@ class SellerProductApiTest {
         // WHEN
         ResponseEntity<ProductResponseDto> updated = updateProduct(product, "seller-karim", ProductResponseDto.class,
                 UpdateProductRequestDto.builder().name("Stan Smith").brand("Adidas").category("tennis")
-                        .description("Le classique du court").build());
+                        .gender(Gender.WOMEN).description("Le classique du court").build());
 
         // THEN
         assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -216,12 +268,29 @@ class SellerProductApiTest {
         assertThat(body.getName()).isEqualTo("Stan Smith");
         assertThat(body.getBrand()).isEqualTo("Adidas");
         assertThat(body.getCategory()).isEqualTo("tennis");
+        assertThat(body.getGender()).isEqualTo("WOMEN");
         assertThat(body.getDescription()).isEqualTo("Le classique du court");
         assertThat(body.getId()).isEqualTo(airMax.getId());
         assertThat(body.getSellerId()).isEqualTo(airMax.getSellerId());
         assertThat(body.getStatus()).isEqualTo(airMax.getStatus());
         assertThat(body.getCreatedAt()).isEqualTo(airMax.getCreatedAt());
         assertThat(readProduct(product)).isEqualTo(body);
+    }
+
+    @Test
+    @DisplayName("SHOULD return 404 CATEGORY_NOT_FOUND and keep the product WHEN it moves to an unknown category")
+    void shouldReturn404AndKeepProductWhenItMovesToUnknownCategory() {
+        // GIVEN
+        URI product = createAirMax("seller-karim").getHeaders().getLocation();
+
+        // WHEN
+        ResponseEntity<JsonNode> response = updateProduct(product, "seller-karim", JsonNode.class,
+                airMaxUpdate().category("snekers").build());
+
+        // THEN
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("CATEGORY_NOT_FOUND");
+        assertThat(readProduct(product).getCategory()).isEqualTo("sneakers");
     }
 
     @Test
@@ -690,7 +759,7 @@ class SellerProductApiTest {
 
     private static UpdateProductRequestDto.UpdateProductRequestDtoBuilder airMaxUpdate() {
         return UpdateProductRequestDto.builder().name("Air Max 90 Infrared").brand("Nike").category("sneakers")
-                .description("La réédition du modèle de 1990");
+                .gender(Gender.UNISEX).description("La réédition du modèle de 1990");
     }
 
     private <T> ResponseEntity<T> addVariant(final URI product, final String sellerId, final String size,
@@ -712,7 +781,7 @@ class SellerProductApiTest {
 
     private ResponseEntity<ProductResponseDto> createAirMax(final String sellerId) {
         CreateProductRequestDto requestDto = CreateProductRequestDto.builder()
-                .name("Air Max 90 Infrared").brand("Nike").category("sneakers")
+                .name("Air Max 90 Infrared").brand("Nike").category("sneakers").gender(Gender.UNISEX)
                 .description("La réédition du modèle de 1990").build();
         return restTemplate.exchange(PRODUCTS, HttpMethod.POST, new HttpEntity<>(requestDto, sellerHeader(sellerId)),
                 ProductResponseDto.class);

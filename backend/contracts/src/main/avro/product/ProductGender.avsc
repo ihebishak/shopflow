@@ -1,0 +1,8 @@
+{
+  "type": "enum",
+  "name": "ProductGender",
+  "namespace": "com.shopflow.contracts.product",
+  "doc": "À qui s'adresse un produit. UNKNOWN est la valeur de repli si un consommateur reçoit une valeur ajoutée après lui.",
+  "symbols": ["UNKNOWN", "MEN", "WOMEN", "UNISEX", "KIDS"],
+  "default": "UNKNOWN"
+}

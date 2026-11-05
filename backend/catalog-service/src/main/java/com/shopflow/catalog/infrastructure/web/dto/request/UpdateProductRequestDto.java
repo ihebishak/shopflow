@@ -1,9 +1,11 @@
 package com.shopflow.catalog.infrastructure.web.dto.request;
 
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.infrastructure.web.swagger.request.UpdateProductRequestDtoDocumentation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
@@ -34,6 +36,9 @@ public class UpdateProductRequestDto implements UpdateProductRequestDtoDocumenta
     @NotBlank(message = "category is required")
     @Size(max = Product.CATEGORY_MAX_LENGTH, message = "category must be at most {max} characters")
     private final String category;
+
+    @NotNull(message = "gender is required")
+    private final Gender gender;
 
     @Size(max = Product.DESCRIPTION_MAX_LENGTH, message = "description must be at most {max} characters")
     private final String description;

@@ -8,6 +8,7 @@ import com.shopflow.catalog.application.service.AddVariantService;
 import com.shopflow.catalog.application.service.GetSellerProductService;
 import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.application.spi.ProductRepository;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
 import com.shopflow.catalog.domain.SellerId;
@@ -134,7 +135,8 @@ class AddVariantTransactionTest {
     }
 
     private Product savedAirMax() {
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now())
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null,
+                Instant.now())
                 .addVariant(Variant.create("42", "Rouge", PRICE));
         productRepository.save(airMax);
         return airMax;

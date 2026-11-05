@@ -1,6 +1,6 @@
 # ShopFlow — Feuille de route
 
-> **La marketplace sneakers & streetwear multi-vendeurs, temps réel et pilotée par les événements.**
+> **La marketplace de mode multi-vendeurs, temps réel et pilotée par les événements.**
 > Vision détaillée : [docs/01-vision.md](docs/01-vision.md)
 > Stack : Angular · Spring Boot · Kafka · MongoDB · Camunda 8 · Axon (+ Redis, Keycloak) · Docker · Kubernetes
 
@@ -35,6 +35,7 @@
 | `loyalty-service` | Points et niveaux de fidélité | MongoDB |
 | `notification-service` | E-mail, notifications in-app, préférences | MongoDB |
 | `analytics-service` | Tendances, recommandations, statistiques (Kafka Streams) | MongoDB (read models) |
+| `ai-service` | IA gratuite : fiche produit assistée, résumé des avis, recherche en langage naturel et par photo, chatbot conseiller | MongoDB + Ollama (Docker) |
 | `frontend` | Espaces client, vendeur et admin (Angular) | — |
 
 Identité : **Keycloak** (rôles `CUSTOMER`, `SELLER`, `ADMIN`).
@@ -99,9 +100,9 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 - ✅ 3.8 Modifier un produit, changer un prix (`ProductUpdated`, `ProductPriceChanged`)
 - ✅ 3.9 Publier / dépublier (`ProductPublished`, `ProductUnpublished`), pas de publication sans variante
 - ✅ 3.10 Lister ses produits (pagination, filtre par statut)
-- ⬜ 3.11 Catégories arborescentes
+- ✅ 3.11 Catégories arborescentes (3 niveaux, créées par l'admin, `GET /api/v1/categories` public) + genre du produit
 - ⬜ 3.12 Images produits (stockage MinIO, compatible S3)
-- ⬜ 3.13 Recherche full-text + filtres à facettes + tri + pagination
+- ⬜ 3.13 Recherche full-text + filtres à facettes (catégorie et ses sous-catégories, genre, taille, marque, prix) + tri + pagination
 - ⬜ 3.14 Cache Redis des produits populaires et invalidation par événement
 - ⬜ 3.15 Signalement d'un produit par les clients + dépublication par l'admin (`ProductReported`)
 - ⬜ 3.16 🖥️ Page catalogue, recherche à facettes, fiche produit, gestion produits côté vendeur
@@ -162,42 +163,64 @@ Légende : ✅ fait · 🟡 en cours · ⬜ à faire · 🖥️ partie frontend
 
 **Livrable :** des tableaux de bord qui bougent en direct pendant une vente flash.
 
-## Phase 9 — Qualité & tests
-- ⬜ 9.1 Tests unitaires (JUnit 5, Mockito) + couverture JaCoCo
-- ⬜ 9.2 Tests d'intégration avec Testcontainers (MongoDB, Kafka, Redis)
-- ⬜ 9.3 Tests de contrat entre services (Spring Cloud Contract)
-- ⬜ 9.4 Tests frontend + tests end-to-end (Playwright)
-- ⬜ 9.5 Tests de charge sur la vente flash (k6 ou Gatling)
-- ⬜ 9.6 Analyse statique (SonarQube)
+## Phase 9 — Intelligence artificielle (gratuite)
+*Aucune API payante : le modèle passe par un port. Par défaut, Ollama tourne dans Docker sur la machine ; une API gratuite (Groq, Gemini, Mistral) reste possible en option. Rien n'est téléchargé sans accord.*
 
-## Phase 10 — Résilience & observabilité
-- ⬜ 10.1 Resilience4j : circuit breaker, retry, timeouts sur les appels synchrones
-- ⬜ 10.2 Métriques Micrometer + Prometheus + dashboards Grafana (techniques et métier : commandes/min, lag Kafka)
-- ⬜ 10.3 Traces distribuées OpenTelemetry (y compris à travers Kafka) + Tempo/Jaeger
-- ⬜ 10.4 Logs JSON centralisés (Loki) avec `correlationId`
-- ⬜ 10.5 Alerting (Alertmanager) : erreurs, lag consommateur, DLT non vide
-- ⬜ 10.6 Documentation des API : OpenAPI (springdoc, agrégé dans la gateway) + AsyncAPI pour les événements
+- ⬜ 9.1 `ai-service` : écoute les événements Kafka, port `LanguageModel` avec un adaptateur Ollama (Docker) et un adaptateur API gratuite
+- ⬜ 9.2 Fiche produit assistée : une description proposée au vendeur, qui la relit et la valide
+- ⬜ 9.3 Résumé des avis d'un produit, mis à jour quand un avis est publié
+- ⬜ 9.4 Recherche en langage naturel (« sneakers blanches femme à moins de 100 € » → filtres de la recherche)
+- ⬜ 9.5 Recherche par photo : retrouver des produits qui ressemblent à une image
+- ⬜ 9.6 Chatbot conseiller : interroge les vrais services, n'invente aucun prix, stock ou produit ; une commande n'est visible que par son propriétaire connecté (contrôlé par le service) ; aucun paiement ni remboursement fait seul
+- ⬜ 9.7 🖥️ Bouton « proposer une description », résumé des avis sur la fiche produit, recherche en langage naturel et par photo, fenêtre du chatbot
 
-## Phase 11 — Conteneurisation & CI/CD
-- ⬜ 11.1 Dockerfiles multi-stage optimisés (non-root, couches) pour chaque service + frontend (nginx)
-- ⬜ 11.2 `docker-compose` complet : toute la stack en une commande
-- ⬜ 11.3 GitHub Actions — CI : build, tests, couverture, Sonar sur chaque PR
-- ⬜ 11.4 GitHub Actions — CD : build des images, scan de sécurité (Trivy), push sur GHCR, versioning sémantique
-- ⬜ 11.5 Mises à jour automatiques des dépendances (Dependabot ou Renovate)
+**Livrable :** un client décrit ce qu'il cherche avec ses mots et le chatbot lui répond avec de vrais produits, sans rien payer pour l'IA.
 
-## Phase 12 — Déploiement Kubernetes
-- ⬜ 12.1 Cluster local (kind / Docker Desktop) + premiers manifests
-- ⬜ 12.2 Chart Helm ShopFlow (un sous-chart par service, valeurs par environnement)
-- ⬜ 12.3 Kafka via l'opérateur Strimzi, MongoDB en replica set, Redis
-- ⬜ 12.4 Ingress NGINX + TLS avec cert-manager
-- ⬜ 12.5 Secrets (Sealed Secrets ou External Secrets), ConfigMaps
-- ⬜ 12.6 Probes, requests/limits, autoscaling HPA (démontré pendant une vente flash)
-- ⬜ 12.7 GitOps avec Argo CD : environnements dev / staging / prod
-- ⬜ 12.8 Déploiement cloud + infrastructure as code (Terraform)
-- ⬜ 12.9 Stack d'observabilité sur le cluster (kube-prometheus-stack, Loki, Tempo)
+## Phase 10 — Qualité & tests
+- ⬜ 10.1 Tests unitaires (JUnit 5, Mockito) + couverture JaCoCo
+- ⬜ 10.2 Tests d'intégration avec Testcontainers (MongoDB, Kafka, Redis)
+- ⬜ 10.3 Tests de contrat entre services (Spring Cloud Contract)
+- ⬜ 10.4 Tests frontend + tests end-to-end (Playwright)
+- ⬜ 10.5 Tests de charge sur la vente flash (k6 ou Gatling)
+- ⬜ 10.6 Analyse statique (SonarQube)
 
-## Phase 13 — Finitions & portfolio
-- ⬜ 13.1 Jeu de données de démo réaliste (vendeurs, produits, avis)
-- ⬜ 13.2 README complet, architecture, captures d'écran, guide de démarrage
-- ⬜ 13.3 ADR (Architecture Decision Records) des choix importants (dont : orchestration Camunda vs chorégraphie, Event Sourcing limité à `payout-service`)
-- ⬜ 13.4 Scénarios de démo + vidéo de présentation
+## Phase 11 — Résilience & observabilité
+- ⬜ 11.1 Resilience4j : circuit breaker, retry, timeouts sur les appels synchrones
+- ⬜ 11.2 Métriques Micrometer + Prometheus + dashboards Grafana (techniques et métier : commandes/min, lag Kafka)
+- ⬜ 11.3 Traces distribuées OpenTelemetry (y compris à travers Kafka) + Tempo/Jaeger
+- ⬜ 11.4 Logs JSON centralisés (Loki) avec `correlationId`
+- ⬜ 11.5 Alerting (Alertmanager) : erreurs, lag consommateur, DLT non vide
+- ⬜ 11.6 Documentation des API : OpenAPI (springdoc, agrégé dans la gateway) + AsyncAPI pour les événements
+
+## Phase 12 — Conteneurisation & CI/CD
+- ⬜ 12.1 Dockerfiles multi-stage optimisés (non-root, couches) pour chaque service + frontend (nginx)
+- ⬜ 12.2 `docker-compose` complet : toute la stack en une commande
+- ⬜ 12.3 GitHub Actions — CI : build, tests, couverture, Sonar sur chaque PR
+- ⬜ 12.4 GitHub Actions — CD : build des images, scan de sécurité (Trivy), push sur GHCR, versioning sémantique
+- ⬜ 12.5 Mises à jour automatiques des dépendances (Dependabot ou Renovate)
+
+## Phase 13 — Déploiement Kubernetes
+- ⬜ 13.1 Cluster local (kind / Docker Desktop) + premiers manifests
+- ⬜ 13.2 Chart Helm ShopFlow (un sous-chart par service, valeurs par environnement)
+- ⬜ 13.3 Kafka via l'opérateur Strimzi, MongoDB en replica set, Redis
+- ⬜ 13.4 Ingress NGINX + TLS avec cert-manager
+- ⬜ 13.5 Secrets (Sealed Secrets ou External Secrets), ConfigMaps
+- ⬜ 13.6 Probes, requests/limits, autoscaling HPA (démontré pendant une vente flash)
+- ⬜ 13.7 GitOps avec Argo CD : environnements dev / staging / prod
+- ⬜ 13.8 Déploiement cloud + infrastructure as code (Terraform)
+- ⬜ 13.9 Stack d'observabilité sur le cluster (kube-prometheus-stack, Loki, Tempo)
+
+## Phase 14 — Finitions & portfolio
+- ⬜ 14.1 Jeu de données de démo réaliste (vendeurs, produits, avis)
+- ⬜ 14.2 README complet, architecture, captures d'écran, guide de démarrage
+- ⬜ 14.3 ADR (Architecture Decision Records) des choix importants (dont : orchestration Camunda vs chorégraphie, Event Sourcing limité à `payout-service`)
+- ⬜ 14.4 Scénarios de démo + vidéo de présentation
+
+## Idées pour plus tard
+- **Retours produits** : demande de retour par le client, accord du vendeur, remboursement
+- **Recommandation de taille** à partir des avis « taille ressentie » et des achats passés
+- **Compléter le look** : produits qui vont bien ensemble sur la fiche produit
+- **Live shopping** : un vendeur présente ses produits en direct, achat sans quitter la vidéo
+- **PWA** : installer le site sur son téléphone, notifications push
+- **Catégories à ajouter** : vestes & manteaux, sport, sous-vêtements & chaussettes, maillots de bain, bijoux & montres, ceintures, lunettes
+- **Filtres supplémentaires** pour la 3.13 : matière, saison, occasion, tag éco-responsable

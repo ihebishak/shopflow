@@ -1,5 +1,6 @@
 package com.shopflow.catalog.infrastructure.kafka.mapper;
 
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
@@ -7,6 +8,7 @@ import com.shopflow.catalog.domain.Sku;
 import com.shopflow.catalog.domain.UnpublishReason;
 import com.shopflow.catalog.domain.Variant;
 import com.shopflow.contracts.product.ProductCreated;
+import com.shopflow.contracts.product.ProductGender;
 import com.shopflow.contracts.product.ProductPriceChanged;
 import com.shopflow.contracts.product.ProductPublished;
 import com.shopflow.contracts.product.ProductUnpublished;
@@ -33,7 +35,7 @@ class ProductEventMapperTest {
     void shouldCopyEveryFieldWhenMappingProductToProductCreated() {
         // GIVEN
         Product airMax = Product.draft(new SellerId("seller-karim"), "Air Max 90 Infrared", "Nike", "sneakers",
-                "Réédition 1990", Instant.now());
+                Gender.UNISEX, "Réédition 1990", Instant.now());
 
         // WHEN
         ProductCreated event = productEventMapper.toProductCreated(airMax);
@@ -44,6 +46,7 @@ class ProductEventMapperTest {
         assertThat(event.getName()).isEqualTo("Air Max 90 Infrared");
         assertThat(event.getBrand()).isEqualTo("Nike");
         assertThat(event.getCategory()).isEqualTo("sneakers");
+        assertThat(event.getGender()).isEqualTo(ProductGender.UNISEX);
         assertThat(event.getVariants()).isEmpty();
     }
 
@@ -104,8 +107,8 @@ class ProductEventMapperTest {
     @DisplayName("SHOULD copy the product id and the seller WHEN mapping to ProductPublished")
     void shouldCopyEveryFieldWhenMappingToProductPublished() {
         // GIVEN
-        Product airMax = Product.draft(new SellerId("seller-karim"), "Air Max 90 Infrared", "Nike", "sneakers", null,
-                Instant.now());
+        Product airMax = Product.draft(new SellerId("seller-karim"), "Air Max 90 Infrared", "Nike", "sneakers",
+                Gender.UNISEX, null, Instant.now());
 
         // WHEN
         ProductPublished event = productEventMapper.toProductPublished(airMax);
@@ -119,8 +122,8 @@ class ProductEventMapperTest {
     @DisplayName("SHOULD copy the product id, the seller and the reason WHEN mapping to ProductUnpublished")
     void shouldCopyEveryFieldWhenMappingToProductUnpublished() {
         // GIVEN
-        Product airMax = Product.draft(new SellerId("seller-karim"), "Air Max 90 Infrared", "Nike", "sneakers", null,
-                Instant.now());
+        Product airMax = Product.draft(new SellerId("seller-karim"), "Air Max 90 Infrared", "Nike", "sneakers",
+                Gender.UNISEX, null, Instant.now());
 
         // WHEN
         ProductUnpublished event = productEventMapper.toProductUnpublished(airMax, UnpublishReason.SELLER);

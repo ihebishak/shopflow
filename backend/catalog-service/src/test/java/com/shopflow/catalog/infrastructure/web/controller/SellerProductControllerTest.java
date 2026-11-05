@@ -17,6 +17,7 @@ import com.shopflow.catalog.application.api.command.UnpublishProductCommand;
 import com.shopflow.catalog.application.api.command.UpdateProductCommand;
 import com.shopflow.catalog.application.api.query.ListSellerProductsQuery;
 import com.shopflow.catalog.domain.DuplicateVariantException;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
@@ -79,7 +80,7 @@ class SellerProductControllerTest {
     private static final String PRODUCTS = "/api/v1/seller/products";
     private static final SellerId KARIM = new SellerId("seller-karim");
     private static final String AIR_MAX_JSON = """
-            { "name": "Air Max 90 Infrared", "brand": "Nike", "category": "sneakers" }
+            { "name": "Air Max 90 Infrared", "brand": "Nike", "category": "sneakers", "gender": "UNISEX" }
             """;
 
     @Autowired
@@ -127,7 +128,42 @@ class SellerProductControllerTest {
                 .andExpect(jsonPath("$.id").value(airMax.getId().toString()))
                 .andExpect(jsonPath("$.sellerId").value("seller-karim"))
                 .andExpect(jsonPath("$.name").value("Air Max 90 Infrared"))
+                .andExpect(jsonPath("$.gender").value("UNISEX"))
                 .andExpect(jsonPath("$.status").value("DRAFT"));
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 VALIDATION_FAILED naming the field, without calling the use case, WHEN the gender is missing")
+    void shouldReturn400WithFieldWhenGenderIsMissing() throws Exception {
+        // GIVEN
+        String withoutGender = """
+                { "name": "Air Max 90 Infrared", "brand": "Nike", "category": "sneakers" }
+                """;
+
+        // WHEN / THEN
+        mockMvc.perform(post(PRODUCTS).header(SellerProductController.SELLER_HEADER, "seller-karim")
+                        .contentType(MediaType.APPLICATION_JSON).content(withoutGender))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[0].field").value("gender"))
+                .andExpect(jsonPath("$.errors[0].code").value("NOT_NULL"));
+        verify(createProductUseCase, never()).createProduct(any());
+    }
+
+    @Test
+    @DisplayName("SHOULD return 400 MALFORMED_REQUEST, without calling the use case, WHEN the gender is unknown")
+    void shouldReturn400WhenGenderIsUnknown() throws Exception {
+        // GIVEN
+        String unknownGender = """
+                { "name": "Air Max 90 Infrared", "brand": "Nike", "category": "sneakers", "gender": "HOMME" }
+                """;
+
+        // WHEN / THEN
+        mockMvc.perform(post(PRODUCTS).header(SellerProductController.SELLER_HEADER, "seller-karim")
+                        .contentType(MediaType.APPLICATION_JSON).content(unknownGender))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+        verify(createProductUseCase, never()).createProduct(any());
     }
 
     @Test
@@ -135,7 +171,7 @@ class SellerProductControllerTest {
     void shouldReturn400WithFieldWhenNameIsBlank() throws Exception {
         // GIVEN
         String blankName = """
-                { "name": " ", "brand": "Nike", "category": "sneakers" }
+                { "name": " ", "brand": "Nike", "category": "sneakers", "gender": "UNISEX" }
                 """;
 
         // WHEN / THEN
@@ -417,7 +453,7 @@ class SellerProductControllerTest {
 
         // WHEN / THEN
         putProduct(airMax.getId(), UpdateProductRequestDto.builder().name("a".repeat(120)).brand("b".repeat(60))
-                .category("c".repeat(60)).description("d".repeat(2_000)).build())
+                .category("c".repeat(60)).gender(Gender.UNISEX).description("d".repeat(2_000)).build())
                 .andExpect(status().isOk());
     }
 
@@ -984,7 +1020,8 @@ class SellerProductControllerTest {
     }
 
     private static UpdateProductRequestDto.UpdateProductRequestDtoBuilder airMaxUpdate() {
-        return UpdateProductRequestDto.builder().name("Air Max 90 Infrared").brand("Nike").category("sneakers");
+        return UpdateProductRequestDto.builder().name("Air Max 90 Infrared").brand("Nike").category("sneakers")
+                .gender(Gender.UNISEX);
     }
 
     private ResultActions postVariant(final ProductId productId, final AddVariantRequestDto requestDto) throws Exception {
@@ -1006,6 +1043,6 @@ class SellerProductControllerTest {
     }
 
     private static Product airMaxOf(final SellerId sellerId) {
-        return Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
+        return Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null, Instant.now());
     }
 }

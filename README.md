@@ -1,6 +1,6 @@
 # 👟 ShopFlow
 
-> **La marketplace sneakers & streetwear où des vendeurs indépendants lancent leurs drops, et où chaque achat se vit en temps réel.**
+> **La marketplace de mode où des vendeurs indépendants lancent leurs drops, et où chaque achat se vit en temps réel.**
 
 Projet personnel d'architecture **microservices pilotée par les événements** : Angular · Spring Boot · Kafka · MongoDB · Camunda 8 · Axon · Redis · Keycloak · Docker · Kubernetes.
 

@@ -7,6 +7,7 @@ import com.shopflow.catalog.application.api.command.PublishProductCommand;
 import com.shopflow.catalog.application.api.command.UnpublishProductCommand;
 import com.shopflow.catalog.application.api.command.UpdateProductCommand;
 import com.shopflow.catalog.application.api.query.ListSellerProductsQuery;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductPage;
@@ -46,7 +47,8 @@ class ProductRestMapperTest {
     void shouldBuildCommandWhenMappingCreationRequest() {
         // GIVEN
         CreateProductRequestDto requestDto = CreateProductRequestDto.builder()
-                .name("Air Max 90 Infrared").brand("Nike").category("sneakers").description("Réédition 1990").build();
+                .name("Air Max 90 Infrared").brand("Nike").category("sneakers").gender(Gender.UNISEX)
+                .description("Réédition 1990").build();
 
         // WHEN
         CreateProductCommand command = productRestMapper.toCommand(requestDto, KARIM);
@@ -56,6 +58,7 @@ class ProductRestMapperTest {
         assertThat(command.getName()).isEqualTo("Air Max 90 Infrared");
         assertThat(command.getBrand()).isEqualTo("Nike");
         assertThat(command.getCategory()).isEqualTo("sneakers");
+        assertThat(command.getGender()).isEqualTo(Gender.UNISEX);
         assertThat(command.getDescription()).isEqualTo("Réédition 1990");
     }
 
@@ -85,7 +88,8 @@ class ProductRestMapperTest {
         // GIVEN
         ProductId productId = ProductId.newId();
         UpdateProductRequestDto requestDto = UpdateProductRequestDto.builder()
-                .name("Air Max 90 OG").brand("Nike Sportswear").category("lifestyle").description("Réédition 2026")
+                .name("Air Max 90 OG").brand("Nike Sportswear").category("lifestyle").gender(Gender.WOMEN)
+                .description("Réédition 2026")
                 .build();
 
         // WHEN
@@ -97,6 +101,7 @@ class ProductRestMapperTest {
         assertThat(command.getName()).isEqualTo("Air Max 90 OG");
         assertThat(command.getBrand()).isEqualTo("Nike Sportswear");
         assertThat(command.getCategory()).isEqualTo("lifestyle");
+        assertThat(command.getGender()).isEqualTo(Gender.WOMEN);
         assertThat(command.getDescription()).isEqualTo("Réédition 2026");
     }
 
@@ -160,7 +165,8 @@ class ProductRestMapperTest {
     @DisplayName("SHOULD copy the products, the position and the totals WHEN mapping a page to the response")
     void shouldCopyEveryFieldWhenMappingPageToResponse() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null,
+                Instant.now());
         ProductPage page = ProductPage.builder().content(List.of(airMax)).page(1).size(20).totalElements(45).build();
 
         // WHEN
@@ -193,7 +199,8 @@ class ProductRestMapperTest {
     void shouldCopyEveryFieldWhenMappingProductToResponse() {
         // GIVEN
         Instant now = Instant.parse("2026-10-31T10:00:00Z");
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", "Réédition 1990", now);
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX,
+                "Réédition 1990", now);
 
         // WHEN
         ProductResponseDto responseDto = productRestMapper.toResponseDto(airMax);
@@ -204,16 +211,32 @@ class ProductRestMapperTest {
         assertThat(responseDto.getName()).isEqualTo("Air Max 90 Infrared");
         assertThat(responseDto.getBrand()).isEqualTo("Nike");
         assertThat(responseDto.getCategory()).isEqualTo("sneakers");
+        assertThat(responseDto.getGender()).isEqualTo("UNISEX");
         assertThat(responseDto.getDescription()).isEqualTo("Réédition 1990");
         assertThat(responseDto.getStatus()).isEqualTo("DRAFT");
         assertThat(responseDto.getCreatedAt()).isEqualTo(now);
     }
 
     @Test
+    @DisplayName("SHOULD return a null gender WHEN the product was saved before the gender existed")
+    void shouldReturnNullGenderWhenProductWasSavedBeforeGenderExisted() {
+        // GIVEN
+        Product oldProduct = Product.restore(ProductId.newId(), KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null,
+                null, ProductStatus.DRAFT, Instant.now(), List.of(), 0L);
+
+        // WHEN
+        ProductResponseDto responseDto = productRestMapper.toResponseDto(oldProduct);
+
+        // THEN
+        assertThat(responseDto.getGender()).isNull();
+    }
+
+    @Test
     @DisplayName("SHOULD return a null description WHEN the product has none")
     void shouldReturnNullDescriptionWhenProductHasNone() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null,
+                Instant.now());
 
         // WHEN
         ProductResponseDto responseDto = productRestMapper.toResponseDto(airMax);
@@ -227,7 +250,8 @@ class ProductRestMapperTest {
     void shouldCopyEveryVariantFieldWhenProductHasVariant() {
         // GIVEN
         Variant variant = Variant.create("42", "Rouge", Money.euros(16000));
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now())
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null,
+                Instant.now())
                 .addVariant(variant);
 
         // WHEN
@@ -246,7 +270,8 @@ class ProductRestMapperTest {
     @DisplayName("SHOULD return an empty list WHEN the product has no variant")
     void shouldReturnEmptyListWhenProductHasNoVariant() {
         // GIVEN
-        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
+        Product airMax = Product.draft(KARIM, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null,
+                Instant.now());
 
         // WHEN
         ProductResponseDto responseDto = productRestMapper.toResponseDto(airMax);

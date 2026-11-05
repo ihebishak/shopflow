@@ -73,7 +73,7 @@ Le message contient uniquement les données métier ; les métadonnées sont dan
 - Consommation : un intercepteur restaure la corrélation dans le MDC et mémorise le message en cours ; tout message publié pendant son traitement reçoit automatiquement le même `ce_correlationid` et `ce_causationid` = son `ce_id`.
 - HTTP : header **`X-Correlation-Id`** (créé par la gateway, repris ou généré par chaque service, renvoyé dans la réponse ; valeur extérieure filtrée : `[A-Za-z0-9-]{1,64}`).
 - Logs : chaque ligne affiche `[correlationId]` après le niveau de log.
-- Le `correlationId` (parcours métier, peut durer des jours dans Camunda) est distinct du `traceId` OpenTelemetry (phase 10, requête technique de quelques secondes).
+- Le `correlationId` (parcours métier, peut durer des jours dans Camunda) est distinct du `traceId` OpenTelemetry (phase 11, requête technique de quelques secondes).
 
 ### 1.4 Garanties de livraison
 
@@ -89,7 +89,7 @@ Le message contient uniquement les données métier ; les métadonnées sont dan
   - Automatique dans les services MongoDB : le starter enveloppe chaque `@KafkaListener` dans une **transaction MongoDB** (pas besoin de `@Transactional`) ; traitement, marqueur `processed_messages` et outbox : tout ou rien.
   - Marqueurs supprimés après **7 jours** (`shopflow.consumer.processed-retention`, au moins la rétention Kafka).
   - Limite : ne protège que les écritures MongoDB ; les effets externes (e-mail, Stripe…) ont leur propre protection (clé d'idempotence).
-- **Erreurs** : réessais **sur place** (les messages suivants attendent : l'ordre est préservé), 4 réessais après 1 s, 2 s, 4 s, 8 s (`shopflow.consumer.retries`, `initial-interval`, `multiplier`), puis mise de côté dans la DLT du service et passage au message suivant. Surveillance et alertes en phase 10.
+- **Erreurs** : réessais **sur place** (les messages suivants attendent : l'ordre est préservé), 4 réessais après 1 s, 2 s, 4 s, 8 s (`shopflow.consumer.retries`, `initial-interval`, `multiplier`), puis mise de côté dans la DLT du service et passage au message suivant. Surveillance et alertes en phase 11.
   - Erreurs définitives (message illisible, mauvais type) : directement en DLT, sans réessai. Un message illisible y est copié en octets bruts (`ErrorHandlingDeserializer`).
   - Le message en DLT garde sa clé, son contenu et son enveloppe CloudEvents ; en-têtes ajoutés : `kafka_dlt-exception-message`, `kafka_dlt-original-topic`, `-partition`, `-offset`, `-consumer-group`.
   - Schémas : le producteur de la DLT enregistre lui-même le schéma pour le topic DLT (copie d'un schéma déjà validé par la CI), seule exception à « seule la CI enregistre ».

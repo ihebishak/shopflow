@@ -4,6 +4,7 @@ import com.shopflow.catalog.application.api.command.AddVariantCommand;
 import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.application.spi.ProductRepository;
 import com.shopflow.catalog.domain.DuplicateVariantException;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductModifiedConcurrentlyException;
@@ -137,7 +138,7 @@ class AddVariantServiceTest {
     }
 
     private static Product draftOf(final SellerId sellerId) {
-        return Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", null, Instant.now());
+        return Product.draft(sellerId, "Air Max 90 Infrared", "Nike", "sneakers", Gender.UNISEX, null, Instant.now());
     }
 
     private static AddVariantCommand commandOf(final SellerId sellerId, final ProductId productId, final String size) {

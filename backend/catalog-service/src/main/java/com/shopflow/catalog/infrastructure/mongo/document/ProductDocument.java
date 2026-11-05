@@ -1,5 +1,6 @@
 package com.shopflow.catalog.infrastructure.mongo.document;
 
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductStatus;
 import lombok.AllArgsConstructor;
@@ -32,6 +33,9 @@ public class ProductDocument {
     private final String name;
     private final String brand;
     private final String category;
+
+    /** {@code null} à la lecture des produits enregistrés avant l'arrivée du genre. */
+    private final Gender gender;
 
     /** {@code null} s'il n'y en a pas : le champ est alors absent du document. */
     private final String description;

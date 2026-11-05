@@ -7,6 +7,7 @@ import com.shopflow.catalog.application.api.command.PublishProductCommand;
 import com.shopflow.catalog.application.api.command.UnpublishProductCommand;
 import com.shopflow.catalog.application.api.command.UpdateProductCommand;
 import com.shopflow.catalog.application.api.query.ListSellerProductsQuery;
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.ProductPage;
@@ -90,5 +91,9 @@ public interface ProductRestMapper {
 
     default String map(final Optional<String> value) {
         return value.orElse(null);
+    }
+
+    default String genderName(final Optional<Gender> gender) {
+        return gender.map(Gender::name).orElse(null);
     }
 }

@@ -1,5 +1,6 @@
 package com.shopflow.catalog.infrastructure.mongo.mapper;
 
+import com.shopflow.catalog.domain.Gender;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.ProductId;
 import com.shopflow.catalog.domain.SellerId;
@@ -37,8 +38,9 @@ public interface ProductDocumentMapper {
                 ? List.of()
                 : document.getVariants().stream().map(this::toDomain).toList();
         return Product.restore(new ProductId(UUID.fromString(document.getId())), new SellerId(document.getSellerId()),
-                document.getName(), document.getBrand(), document.getCategory(), document.getDescription(),
-                document.getStatus(), document.getCreatedAt(), variants, document.getVersion());
+                document.getName(), document.getBrand(), document.getCategory(), document.getGender(),
+                document.getDescription(), document.getStatus(), document.getCreatedAt(), variants,
+                document.getVersion());
     }
 
     default Variant toDomain(final VariantDocument document) {
@@ -64,5 +66,9 @@ public interface ProductDocumentMapper {
 
     default String map(final Optional<String> value) {
         return value.orElse(null);
+    }
+
+    default Gender toGender(final Optional<Gender> gender) {
+        return gender.orElse(null);
     }
 }

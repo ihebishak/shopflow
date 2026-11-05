@@ -77,7 +77,10 @@ class CatalogServiceApplicationTest {
                 .contains("\"/api/v1/seller/products\"")
                 .contains("\"/api/v1/seller/products/{productId}\"")
                 .contains("Produits (vendeur)")
-                .contains("X-Seller-Id");
+                .contains("X-Seller-Id")
+                .contains("\"/api/v1/admin/categories\"")
+                .contains("Catégories (admin)")
+                .contains("\"/api/v1/categories\"");
         assertThat(http.getForEntity("/swagger-ui/index.html", String.class).getStatusCode().is2xxSuccessful())
                 .as("page Swagger UI").isTrue();
     }
@@ -95,12 +98,22 @@ class CatalogServiceApplicationTest {
         assertThat(request.at("/properties/name/example").asText()).isEqualTo("Air Max 90 Infrared");
         assertThat(request.at("/properties/name/maxLength").asInt()).as("Bean Validation du DTO").isEqualTo(120);
         assertThat(request.get("required")).extracting(JsonNode::asText)
-                .containsExactlyInAnyOrder("name", "brand", "category");
+                .containsExactlyInAnyOrder("name", "brand", "category", "gender");
         JsonNode response = schemas.get("VariantResponseDto");
         assertThat(response.at("/properties/size/description").asText()).isEqualTo("Taille.");
         assertThat(response.at("/properties/price/description").asText()).isEqualTo("Prix de la variante.");
         JsonNode page = schemas.get("ProductPageResponseDto");
         assertThat(page.get("description").isTextual()).as("description de la classe").isTrue();
         assertThat(page.at("/properties/totalPages/description").asText()).isEqualTo("Nombre total de pages.");
+        JsonNode category = schemas.get("CreateCategoryRequestDto");
+        assertThat(category.at("/properties/name/description").asText()).isEqualTo("Nom affiché.");
+        assertThat(category.at("/properties/slug/maxLength").asInt()).as("Bean Validation du DTO").isEqualTo(60);
+        assertThat(category.get("required")).extracting(JsonNode::asText).containsExactlyInAnyOrder("slug", "name");
+        assertThat(schemas.at("/CategoryResponseDto/properties/ancestors/description").asText())
+                .startsWith("Identifiants des parents");
+        JsonNode node = schemas.get("CategoryNodeResponseDto");
+        assertThat(node.at("/properties/name/description").asText()).isEqualTo("Nom affiché.");
+        assertThat(node.at("/properties/children/description").asText()).startsWith("Les sous-catégories");
+        assertThat(node.at("/properties/children/items/$ref").asText()).endsWith("/CategoryNodeResponseDto");
     }
 }
