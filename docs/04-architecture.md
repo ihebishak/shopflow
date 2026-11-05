@@ -1,6 +1,6 @@
 # 04 — Architecture (modèle C4)
 
-Trois vues : le **contexte** (ShopFlow vu de l'extérieur), les **conteneurs** (l'intérieur, regroupé par domaine) et un **zoom sur la commande**. Le diagramme de déploiement viendra avec Kubernetes (phase 12).
+Trois vues : le **contexte** (ShopFlow vu de l'extérieur), les **conteneurs** (l'intérieur, regroupé par domaine) et un **zoom sur la commande**. Le diagramme de déploiement viendra avec Kubernetes (phase 13).
 
 ## ① Contexte
 
@@ -10,7 +10,7 @@ flowchart LR
     seller["👤 Vendeur<br/>Publie ses produits, expédie,<br/>suit ses ventes et ses revenus"]
     admin["👤 Admin<br/>Valide vendeurs et drops,<br/>modère, supervise"]
 
-    shopflow["🏬 ShopFlow<br/>Marketplace sneakers & streetwear<br/>multi-vendeurs, temps réel"]
+    shopflow["🏬 ShopFlow<br/>Marketplace de mode<br/>multi-vendeurs, temps réel"]
 
     stripe["💳 Stripe<br/>Paiement en mode test"]
     mail["✉️ Serveur e-mail<br/>Mailpit en développement"]
