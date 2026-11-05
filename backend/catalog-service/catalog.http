@@ -1,5 +1,7 @@
 # Requêtes à lancer depuis IntelliJ (bouton ▶ à gauche de chaque requête), service démarré sur le port 8101.
 # Le vendeur est identifié par l'en-tête X-Seller-Id, en attendant Keycloak (phase 2).
+# Un produit doit être rangé dans une catégorie existante : lancer d'abord les requêtes « catégorie » plus bas
+# (elles créent chaussures et sneakers).
 
 ### Créer une Air Max (naît en brouillon)
 POST http://localhost:8101/api/v1/seller/products
@@ -46,6 +48,28 @@ Content-Type: application/json
   "name": " ",
   "brand": "Nike",
   "category": "sneakers"
+}
+
+### Catégorie inconnue (404 CATEGORY_NOT_FOUND)
+POST http://localhost:8101/api/v1/seller/products
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": "Air Max 90 Infrared",
+  "brand": "Nike",
+  "category": "snekers"
+}
+
+### Catégorie mal formée, avec une majuscule (400 INVALID_CATEGORY_SLUG)
+POST http://localhost:8101/api/v1/seller/products
+X-Seller-Id: seller-karim
+Content-Type: application/json
+
+{
+  "name": "Air Max 90 Infrared",
+  "brand": "Nike",
+  "category": "Sneakers"
 }
 
 ### Ajouter une variante (201, avec son SKU généré par le serveur). Le prix est en centimes : 16000 = 160,00 €

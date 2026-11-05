@@ -2,8 +2,11 @@ package com.shopflow.catalog.application.service;
 
 import com.shopflow.catalog.application.api.CreateProductUseCase;
 import com.shopflow.catalog.application.api.command.CreateProductCommand;
+import com.shopflow.catalog.application.spi.CategoryRepository;
 import com.shopflow.catalog.application.spi.ProductEventPublisher;
 import com.shopflow.catalog.application.spi.ProductRepository;
+import com.shopflow.catalog.domain.Category;
+import com.shopflow.catalog.domain.CategorySlug;
 import com.shopflow.catalog.domain.Product;
 import com.shopflow.catalog.domain.SellerId;
 import jakarta.validation.ConstraintViolation;
@@ -22,11 +25,13 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 /**
  * La porte du cas d'usage : créé par Spring, le service vérifie sa commande avant de s'exécuter
@@ -40,6 +45,9 @@ class CreateProductValidationTest {
 
     @MockitoBean
     private ProductRepository productRepository;
+
+    @MockitoBean
+    private CategoryRepository categoryRepository;
 
     @MockitoBean
     private ProductEventPublisher productEventPublisher;
@@ -58,7 +66,7 @@ class CreateProductValidationTest {
         assertThat(((ConstraintViolationException) error).getConstraintViolations())
                 .extracting(ConstraintViolation::getMessage)
                 .containsExactly("name is required");
-        verifyNoInteractions(productRepository, productEventPublisher);
+        verifyNoInteractions(productRepository, categoryRepository, productEventPublisher);
     }
 
     @Test
@@ -66,6 +74,8 @@ class CreateProductValidationTest {
     void shouldRunUseCaseWhenCommandIsValid() {
         // GIVEN
         CreateProductCommand command = airMaxCommand("Air Max 90 Infrared");
+        CategorySlug sneakers = new CategorySlug("sneakers");
+        when(categoryRepository.findBySlug(sneakers)).thenReturn(Optional.of(Category.root(sneakers, "Sneakers")));
 
         // WHEN
         Product product = createProductUseCase.createProduct(command);

@@ -13,7 +13,8 @@ public interface CreateProductRequestDtoDocumentation {
     @Schema(description = "Marque.", example = "Nike")
     String getBrand();
 
-    @Schema(description = "Catégorie (l'arborescence viendra plus tard).", example = "sneakers")
+    @Schema(description = "Identifiant d'une catégorie de l'arbre (GET /api/v1/categories), à n'importe quel niveau.",
+            example = "sneakers")
     String getCategory();
 
     @Schema(description = "Description, facultative.", example = "La réédition du modèle de 1990",

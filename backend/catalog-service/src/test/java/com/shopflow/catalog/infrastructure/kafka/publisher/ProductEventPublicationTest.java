@@ -1,6 +1,9 @@
 package com.shopflow.catalog.infrastructure.kafka.publisher;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.shopflow.catalog.application.spi.CategoryRepository;
+import com.shopflow.catalog.domain.Category;
+import com.shopflow.catalog.domain.CategorySlug;
 import com.shopflow.catalog.infrastructure.mongo.document.ProductDocument;
 import com.shopflow.catalog.infrastructure.web.controller.SellerProductController;
 import com.shopflow.catalog.infrastructure.web.dto.request.AddVariantRequestDto;
@@ -26,6 +29,7 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -85,8 +89,22 @@ class ProductEventPublicationTest {
     @Autowired
     private MongoTemplate mongoTemplate;
 
+    @Autowired
+    private CategoryRepository categoryRepository;
+
     @MockitoSpyBean
     private OutboxPublisher outboxPublisher;
+
+    /** Le MongoDB du test est partagé : les catégories utilisées par les produits ne sont créées qu'une fois. */
+    @BeforeEach
+    void createCategories() {
+        for (String category : List.of("sneakers")) {
+            CategorySlug slug = new CategorySlug(category);
+            if (categoryRepository.findBySlug(slug).isEmpty()) {
+                categoryRepository.create(Category.root(slug, category));
+            }
+        }
+    }
 
     @Test
     @DisplayName("SHOULD publish ProductCreated on Kafka with its envelope WHEN a seller creates a product")
